@@ -36,17 +36,16 @@ const sc: Record<string, { label: string; style: string }> = {
 const fmtAddr = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`
 
 export default function Home() {
-  const envContract = process.env.NEXT_PUBLIC_VERIFIER_CONTRACT || ''
+  const contractAddr = process.env.NEXT_PUBLIC_VERIFIER_CONTRACT || ''
   const { address, isConnected } = useAccount()
   const { data: walletClient } = useWalletClient()
 
-  const [contractAddr, setContractAddr] = useState(envContract)
   const [tasks, setTasks] = useState<TaskMap>({})
   const [loading, setLoading] = useState(false)
   const [verifying, setVerifying] = useState<string | null>(null)
 
   const fetchTasks = useCallback(async () => {
-    if (!contractAddr.startsWith('0x')) return
+    if (!contractAddr) return
     setLoading(true)
     try {
       const raw = await publicClient.readContract({
@@ -97,33 +96,28 @@ export default function Home() {
       </header>
 
       <div className="max-w-5xl mx-auto px-6 py-12 md:py-16">
-        {/* Hero */}
-        <div className="mb-10">
-          <h1 className="text-[30px] font-extrabold text-ink-deep leading-[1.2] tracking-[-0.75px]">
-            Task Verifier
-          </h1>
-          <p className="mt-2 text-[16px] text-ink leading-[1.5] max-w-xl">
-            Monitor submissions from your community. GenLayer AI validators cross-reference proof against live tweets and reach consensus on-chain.
-          </p>
-        </div>
-
-        {/* Contract */}
-        <div className="mb-10 p-5 border border-border rounded-sm bg-canvas">
-          <label className="block text-[13px] font-bold uppercase tracking-wide text-ink-muted mb-3">Contract address</label>
-          <div className="flex gap-2">
-            <input value={contractAddr} onChange={e => setContractAddr(e.target.value)}
-              placeholder={envContract || '0x…'}
-              className="flex-1 bg-canvas-surface border border-border-light rounded-sm px-3 py-2 text-[14px] text-ink font-mono placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-focus/50" />
-            <button onClick={fetchTasks}
-              className="px-4 py-2 bg-canvas-surface hover:bg-canvas-raised border border-border rounded-sm text-[14px] font-semibold text-ink-muted hover:text-brand transition-colors">
-              Load
-            </button>
+        {/* No contract configured */}
+        {!contractAddr && (
+          <div className="py-20 text-center border border-border rounded-sm bg-canvas">
+            <p className="text-[16px] font-semibold text-ink-muted mb-1.5">Contract not configured</p>
+            <p className="text-[14px] text-ink-faint max-w-md mx-auto leading-[1.5]">
+              Set <code className="text-[13px] bg-canvas-surface px-1.5 py-0.5 rounded-sm font-mono text-ink">NEXT_PUBLIC_VERIFIER_CONTRACT</code> in your environment variables, then redeploy.
+            </p>
           </div>
-        </div>
+        )}
 
-        {contractAddr.startsWith('0x') && (
+        {/* Dashboard */}
+        {contractAddr && (
           <>
-            {/* Stats */}
+            <div className="mb-10">
+              <h1 className="text-[30px] font-extrabold text-ink-deep leading-[1.2] tracking-[-0.75px]">
+                Task Verifier
+              </h1>
+              <p className="mt-2 text-[16px] text-ink leading-[1.5] max-w-xl">
+                Monitor submissions from your community. GenLayer AI validators cross-reference proof against live tweets and reach consensus on-chain.
+              </p>
+            </div>
+
             <div className="grid grid-cols-3 gap-4 mb-8">
               {[
                 { label: 'Submissions', value: total },
@@ -144,7 +138,6 @@ export default function Home() {
               </button>
             )}
 
-            {/* Tasks */}
             <section>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-[18px] font-bold text-ink-deep">Submissions</h2>
@@ -158,7 +151,7 @@ export default function Home() {
                 <div className="py-16 text-center border border-border rounded-sm bg-canvas">
                   <p className="text-[16px] font-semibold text-ink-muted mb-1">No submissions yet</p>
                   <p className="text-[14px] text-ink-faint max-w-sm mx-auto leading-[1.5]">
-                    Share your contract with your community. Submissions appear here in real time.
+                    Share your contract with your community. Submissions appear in real time.
                   </p>
                 </div>
               ) : (
@@ -205,7 +198,6 @@ export default function Home() {
         )}
       </div>
 
-      {/* Footer */}
       <footer className="border-t border-border bg-canvas mt-16">
         <div className="max-w-5xl mx-auto px-6 py-6 flex items-center justify-between">
           <div className="text-[12px] font-semibold text-ink-faint">
