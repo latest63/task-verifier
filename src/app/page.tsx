@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import {
   createPublicClient,
   createWalletClient,
@@ -15,9 +15,7 @@ const bradbury = defineChain({
   name: 'GenLayer Bradbury Testnet',
   nativeCurrency: { name: 'GEN', symbol: 'GEN', decimals: 18 },
   rpcUrls: { default: { http: ['https://rpc-bradbury.genlayer.com'] } },
-  blockExplorers: {
-    default: { name: 'Bradbury Explorer', url: 'https://explorer-bradbury.genlayer.com' },
-  },
+  blockExplorers: { default: { name: 'Bradbury Explorer', url: 'https://explorer-bradbury.genlayer.com' } },
   testnet: true,
 })
 
@@ -25,80 +23,61 @@ const publicClient = createPublicClient({ chain: bradbury, transport: http() })
 
 // ── Contract ABI ───────────────────────────────────────────────
 const taskAbi = [
-  {
-    type: 'function', name: 'submit_task',
-    inputs: [
-      { type: 'string', name: 'tweet_url' },
-      { type: 'string', name: 'screenshot_url' },
-      { type: 'string', name: 'expected_handle' },
-      { type: 'string', name: 'action_type' },
-    ],
-    stateMutability: 'write',
-  },
-  {
-    type: 'function', name: 'verify',
-    inputs: [{ type: 'string', name: 'task_id' }],
-    stateMutability: 'write',
-  },
-  {
-    type: 'function', name: 'get_task',
-    inputs: [{ type: 'string', name: 'task_id' }],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function', name: 'get_all_tasks',
-    inputs: [], stateMutability: 'view',
-  },
-  {
-    type: 'function', name: 'get_task_count',
-    inputs: [], stateMutability: 'view',
-  },
+  { type: 'function', name: 'submit_task', inputs: [
+    { type: 'string', name: 'tweet_url' }, { type: 'string', name: 'screenshot_url' },
+    { type: 'string', name: 'expected_handle' }, { type: 'string', name: 'action_type' },
+  ], stateMutability: 'write' },
+  { type: 'function', name: 'verify', inputs: [{ type: 'string', name: 'task_id' }], stateMutability: 'write' },
+  { type: 'function', name: 'get_task', inputs: [{ type: 'string', name: 'task_id' }], stateMutability: 'view' },
+  { type: 'function', name: 'get_all_tasks', inputs: [], stateMutability: 'view' },
+  { type: 'function', name: 'get_task_count', inputs: [], stateMutability: 'view' },
 ] as const
 
 // ── Types ──────────────────────────────────────────────────────
-type TaskData = {
-  submitter: string
-  tweet_url: string
-  screenshot_url: string
-  expected_handle: string
-  action_type: string
-  status: string
-  verdict_reason: string
-  timestamp: string
-}
+type TaskData = { submitter: string; tweet_url: string; screenshot_url: string; expected_handle: string; action_type: string; status: string; verdict_reason: string; timestamp: string }
 type TaskMap = Record<string, TaskData>
 type Role = 'project' | 'community'
+const ACTIONS = ['like', 'retweet', 'reply', 'post'] as const
 
-const ACTION_TYPES = ['like', 'retweet', 'reply', 'post'] as const
-
-const sc: Record<string, { label: string; cls: string; dot: string }> = {
-  pending:  { label: 'Pending',  cls: 'text-amber-300/90 border-amber-500/20 bg-amber-500/8',   dot: 'bg-amber-400' },
-  verified: { label: 'Verified', cls: 'text-emerald-300/90 border-emerald-500/20 bg-emerald-500/8', dot: 'bg-emerald-400' },
-  rejected: { label: 'Rejected', cls: 'text-red-300/90 border-red-500/20 bg-red-500/8',      dot: 'bg-red-400' },
+const statusRing: Record<string, string> = {
+  pending:  'ring-warning/20',
+  verified: 'ring-success/20',
+  rejected: 'ring-danger/20',
 }
 
-// ── Helpers ────────────────────────────────────────────────────
+const statusCfg: Record<string, { label: string; dot: string; badge: string }> = {
+  pending:  { label: 'Pending',  dot: 'bg-warning',          badge: 'text-warning border-warning-border/40 bg-warning-muted' },
+  verified: { label: 'Verified', dot: 'bg-success',          badge: 'text-success border-success-border/40 bg-success-muted' },
+  rejected: { label: 'Rejected', dot: 'bg-danger',           badge: 'text-danger border-danger-border/40 bg-danger-muted' },
+}
+
 const fmtAddr = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`
 
-// ── SVG icons (inline for zero deps) ───────────────────────────
-const CheckIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+// ── Inline SVG icons ───────────────────────────────────────────
+const Logo = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
   </svg>
 )
-const DocIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
-  </svg>
-)
-const ImageIcon = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="opacity-30">
-    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
-  </svg>
-)
-const ShieldIcon = () => (
+const WalletIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+    <rect x="2" y="5" width="20" height="14" rx="2"/><line x1="16" y1="12" x2="16" y2="12.01" strokeWidth="3" strokeLinecap="round"/>
+  </svg>
+)
+const FileSearch = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="text-ink-dim">
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+    <circle cx="11.5" cy="14.5" r="2.5"/><line x1="13.5" y1="16.5" x2="16" y2="19"/>
+  </svg>
+)
+const UploadCloud = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="text-ink-dim">
+    <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>
+  </svg>
+)
+const CheckBadge = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/>
   </svg>
 )
 
@@ -109,23 +88,24 @@ export default function Home() {
   const [role, setRole] = useState<Role>('project')
   const [address, setAddress] = useState<string | null>(null)
   const [connecting, setConnecting] = useState(false)
+  const [viewKey, setViewKey] = useState(0) // triggers animation
 
-  // Project state
-  const [projectContract, setProjectContract] = useState(envContract)
-  const [projectTasks, setProjectTasks] = useState<TaskMap>({})
-  const [projectLoading, setProjectLoading] = useState(false)
+  // Project
+  const [projContract, setProjContract] = useState(envContract)
+  const [projTasks, setProjTasks] = useState<TaskMap>({})
+  const [projLoading, setProjLoading] = useState(false)
 
-  // Community state
-  const [communityContract, setCommunityContract] = useState('')
+  // Community
+  const [commContract, setCommContract] = useState('')
   const [screenshot, setScreenshot] = useState<File | null>(null)
-  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null)
+  const [preview, setPreview] = useState<string | null>(null)
   const [tweetUrl, setTweetUrl] = useState('')
   const [handle, setHandle] = useState('')
   const [action, setAction] = useState<string>('like')
   const [submitting, setSubmitting] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [myTasks, setMyTasks] = useState<TaskMap>({})
-  const [myTasksLoading, setMyTasksLoading] = useState(false)
+  const [myLoading, setMyLoading] = useState(false)
   const [verifying, setVerifying] = useState<string | null>(null)
 
   // ── Wallet ───────────────────────────────────────────────────
@@ -156,298 +136,281 @@ export default function Home() {
     return () => { window.ethereum?.removeListener?.('accountsChanged', h) }
   }, [])
 
-  // ── Project: fetch tasks ─────────────────────────────────────
-  const fetchProjectTasks = useCallback(async () => {
-    if (!projectContract || !projectContract.startsWith('0x')) return
-    setProjectLoading(true)
-    try {
-      const raw = await publicClient.readContract({
-        address: projectContract as `0x${string}`,
-        abi: taskAbi, functionName: 'get_all_tasks',
-      })
-      if (raw && typeof raw === 'object') setProjectTasks(raw as unknown as TaskMap)
-    } catch (e) { console.error(e) } finally { setProjectLoading(false) }
-  }, [projectContract])
+  const switchRole = (r: Role) => { setRole(r); setViewKey(v => v + 1) }
 
-  useEffect(() => {
-    if (role !== 'project') return
-    fetchProjectTasks()
-    const i = setInterval(fetchProjectTasks, 8000)
-    return () => clearInterval(i)
-  }, [role, fetchProjectTasks])
+  // ── Fetch helpers ────────────────────────────────────────────
+  const readAllTasks = async (addr: string) => {
+    const raw = await publicClient.readContract({
+      address: addr as `0x${string}`, abi: taskAbi, functionName: 'get_all_tasks',
+    })
+    return (raw && typeof raw === 'object') ? (raw as unknown as TaskMap) : {}
+  }
 
-  // ── Project: verify pending ──────────────────────────────────
-  const projectVerify = async (taskId: string) => {
-    if (!address || !projectContract) return
+  // ── Project: fetch ───────────────────────────────────────────
+  const fetchProj = useCallback(async () => {
+    if (!projContract.startsWith('0x')) return
+    setProjLoading(true)
+    try { setProjTasks(await readAllTasks(projContract)) } catch (e) { console.error(e) } finally { setProjLoading(false) }
+  }, [projContract])
+
+  useEffect(() => { if (role === 'project') { fetchProj(); const i = setInterval(fetchProj, 8000); return () => clearInterval(i) } }, [role, fetchProj])
+
+  // ── Project: verify ──────────────────────────────────────────
+  const verifyOne = async (taskId: string) => {
+    if (!address || !projContract) return
     setVerifying(taskId)
     try {
       const wc = createWalletClient({ chain: bradbury, transport: custom(window.ethereum!) })
       const hash = await wc.writeContract({
-        account: address as `0x${string}`,
-        address: projectContract as `0x${string}`,
-        abi: taskAbi, functionName: 'verify', args: [taskId],
+        account: address as `0x${string}`, address: projContract as `0x${string}`, abi: taskAbi, functionName: 'verify', args: [taskId],
       })
       await publicClient.waitForTransactionReceipt({ hash })
-      await fetchProjectTasks()
+      await fetchProj()
     } catch (e: any) { alert(e?.message ?? 'Failed') } finally { setVerifying(null) }
   }
 
-  const projectVerifyAll = async () => {
-    const pending = Object.entries(projectTasks).filter(([, t]) => t.status === 'pending')
-    for (const [id] of pending) {
-      await projectVerify(id)
-    }
+  const verifyAll = async () => {
+    const pending = Object.entries(projTasks).filter(([, t]) => t.status === 'pending')
+    for (const [id] of pending) await verifyOne(id)
   }
 
   // ── Community: fetch my tasks ────────────────────────────────
-  const fetchMyTasks = useCallback(async () => {
-    if (!communityContract || !communityContract.startsWith('0x') || !address) return
-    setMyTasksLoading(true)
+  const fetchMy = useCallback(async () => {
+    if (!commContract.startsWith('0x') || !address) return
+    setMyLoading(true)
     try {
-      const raw = await publicClient.readContract({
-        address: communityContract as `0x${string}`,
-        abi: taskAbi, functionName: 'get_all_tasks',
-      })
-      if (raw && typeof raw === 'object') {
-        const all = raw as unknown as TaskMap
-        const mine: TaskMap = {}
-        for (const [id, t] of Object.entries(all)) {
-          if (t.submitter.toLowerCase() === address.toLowerCase()) mine[id] = t
-        }
-        setMyTasks(mine)
+      const all = await readAllTasks(commContract)
+      const mine: TaskMap = {}
+      for (const [id, t] of Object.entries(all)) {
+        if (t.submitter.toLowerCase() === address.toLowerCase()) mine[id] = t
       }
-    } catch (e) { console.error(e) } finally { setMyTasksLoading(false) }
-  }, [communityContract, address])
+      setMyTasks(mine)
+    } catch (e) { console.error(e) } finally { setMyLoading(false) }
+  }, [commContract, address])
 
-  useEffect(() => {
-    if (role !== 'community') return
-    fetchMyTasks()
-    const i = setInterval(fetchMyTasks, 8000)
-    return () => clearInterval(i)
-  }, [role, fetchMyTasks])
+  useEffect(() => { if (role === 'community') { fetchMy(); const i = setInterval(fetchMy, 8000); return () => clearInterval(i) } }, [role, fetchMy])
 
-  // ── Community: submit proof ──────────────────────────────────
-  const handleSubmit = async (e: React.FormEvent) => {
+  // ── Community: submit ────────────────────────────────────────
+  const submitProof = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!address || !communityContract || !screenshot) return
+    if (!address || !commContract || !screenshot) return
     setSubmitting(true)
     try {
       setUploading(true)
       const fd = new FormData(); fd.append('file', screenshot)
       const up = await fetch('/api/upload', { method: 'POST', body: fd })
-      const { url: screenshotUrl } = await up.json()
+      const { url } = await up.json()
       setUploading(false)
 
       const wc = createWalletClient({ chain: bradbury, transport: custom(window.ethereum!) })
       const hash = await wc.writeContract({
-        account: address as `0x${string}`,
-        address: communityContract as `0x${string}`,
-        abi: taskAbi, functionName: 'submit_task',
-        args: [tweetUrl, screenshotUrl, handle, action],
+        account: address as `0x${string}`, address: commContract as `0x${string}`, abi: taskAbi,
+        functionName: 'submit_task', args: [tweetUrl, url, handle, action],
       })
       await publicClient.waitForTransactionReceipt({ hash })
-      await fetchMyTasks()
-      setScreenshot(null); setScreenshotPreview(null); setTweetUrl(''); setHandle(''); setAction('like')
+      await fetchMy()
+      setScreenshot(null); setPreview(null); setTweetUrl(''); setHandle(''); setAction('like')
     } catch (e: any) { alert(e?.message ?? 'Failed') } finally { setSubmitting(false); setUploading(false) }
   }
 
-  const handleScreenshot = (file: File | undefined) => {
-    if (!file) { setScreenshot(null); setScreenshotPreview(null); return }
-    setScreenshot(file)
-    setScreenshotPreview(URL.createObjectURL(file))
+  const handleFile = (file: File | undefined) => {
+    if (!file) { setScreenshot(null); setPreview(null); return }
+    setScreenshot(file); setPreview(URL.createObjectURL(file))
   }
 
-  // ── Stats ────────────────────────────────────────────────────
-  const allTasks = role === 'project' ? projectTasks : myTasks
-  const taskCount = Object.keys(allTasks).length
-  const verifiedCount = Object.values(allTasks).filter(t => t.status === 'verified').length
-  const pendingCount = Object.values(allTasks).filter(t => t.status === 'pending').length
-  const taskList = Object.entries(allTasks).reverse()
-
-  // ── Is contract valid? ───────────────────────────────────────
-  const projValid = projectContract.startsWith('0x')
-  const commValid = communityContract.startsWith('0x')
-  const currentValid = role === 'project' ? projValid : commValid
+  // ── Data ─────────────────────────────────────────────────────
+  const tasks = role === 'project' ? projTasks : myTasks
+  const taskCount = Object.keys(tasks).length
+  const verifiedN = Object.values(tasks).filter(t => t.status === 'verified').length
+  const pendingN = Object.values(tasks).filter(t => t.status === 'pending').length
+  const taskList = Object.entries(tasks).reverse()
 
   // ── Render ───────────────────────────────────────────────────
   return (
-    <main className="min-h-screen bg-canvas">
-      {/* ─── Header ─────────────────────────────────── */}
-      <header className="sticky top-0 z-50 bg-canvas-panel/80 backdrop-blur-xl border-b border-border-subtle">
-        <div className="max-w-4xl mx-auto px-6 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-7 h-7 rounded-md bg-accent flex items-center justify-center">
-              <ShieldIcon />
+    <main className="min-h-screen bg-canvas selection:bg-brand-glow/30">
+      {/* ═══════════════════════════════════════════════════════
+          HEADER
+      ═══════════════════════════════════════════════════════ */}
+      <header className="sticky top-0 z-50 bg-canvas-panel/70 backdrop-blur-2xl border-b border-white/[0.06]">
+        <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
+          {/* Left: brand */}
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-brand flex items-center justify-center text-white">
+              <Logo />
             </div>
-            <span className="text-[15px] font-medium text-ink tracking-[-0.165px]">Task Verifier</span>
+            <span className="text-[15px] font-medium text-ink tracking-tight">Task Verifier</span>
           </div>
 
-          <div className="flex items-center gap-3">
-            {/* Role toggle */}
-            <div className="flex bg-canvas-surface rounded-md border border-border p-0.5">
-              <button
-                onClick={() => setRole('project')}
-                className={`px-3 py-1 rounded text-[12px] font-medium transition-colors ${
-                  role === 'project'
-                    ? 'bg-accent text-white shadow-[0_1px_2px_rgba(0,0,0,0.3)]'
-                    : 'text-ink-faint hover:text-ink-muted'
+          {/* Center: role toggle */}
+          <div className="flex bg-canvas-surface rounded-lg border border-white/[0.06] p-0.5 shadow-sm">
+            {(['project', 'community'] as const).map(r => (
+              <button key={r} onClick={() => switchRole(r)}
+                className={`relative px-4 py-1.5 rounded-md text-[13px] font-medium transition-all duration-200 ${
+                  role === r ? 'text-ink' : 'text-ink-faint hover:text-ink-muted'
                 }`}
               >
-                Project
+                {role === r && (
+                  <span className="absolute inset-1 bg-canvas-raised rounded shadow-sm border border-white/[0.06]" />
+                )}
+                <span className="relative z-10">{r === 'project' ? 'Project' : 'Community'}</span>
               </button>
-              <button
-                onClick={() => setRole('community')}
-                className={`px-3 py-1 rounded text-[12px] font-medium transition-colors ${
-                  role === 'community'
-                    ? 'bg-accent text-white shadow-[0_1px_2px_rgba(0,0,0,0.3)]'
-                    : 'text-ink-faint hover:text-ink-muted'
-                }`}
-              >
-                Community
-              </button>
-            </div>
-
-            <button
-              onClick={connectWallet}
-              disabled={connecting}
-              className={`h-8 px-4 rounded-md text-[13px] font-medium transition-all duration-150 ${
-                address
-                  ? 'bg-accent-emerald/10 text-emerald-300 border border-emerald-500/20'
-                  : 'bg-accent hover:bg-accent-hover text-white'
-              }`}
-            >
-              {connecting ? 'Connecting…' : address ? fmtAddr(address) : 'Connect Wallet'}
-            </button>
+            ))}
           </div>
+
+          {/* Right: wallet */}
+          <button onClick={connectWallet} disabled={connecting}
+            className={`h-8 px-4 rounded-lg text-[13px] font-medium transition-all duration-200 flex items-center gap-1.5 ${
+              address
+                ? 'bg-success-muted text-success border border-success-border/30 shadow-sm'
+                : 'bg-brand hover:bg-brand-hover text-white shadow-glow'
+            }`}
+          >
+            {connecting ? (
+              <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              <WalletIcon />
+            )}
+            <span>{connecting ? 'Connecting…' : address ? fmtAddr(address) : 'Connect'}</span>
+          </button>
         </div>
       </header>
 
-      <div className="max-w-4xl mx-auto px-6 py-10">
-
-        {/* ─── PROJECT VIEW ─────────────────────────── */}
+      {/* ═══════════════════════════════════════════════════════
+          CONTENT
+      ═══════════════════════════════════════════════════════ */}
+      <div className="max-w-5xl mx-auto px-6 py-12 md:py-16">
+        {/* ═══ PROJECT VIEW ═══════════════════════════════ */}
         {role === 'project' && (
-          <>
+          <div key={viewKey} className="animate-fade-in">
             {/* Hero */}
-            <div className="mb-8">
-              <h1 className="text-[28px] font-semibold text-ink leading-[1.15] tracking-[-0.616px]">
+            <div className="mb-10">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-glow/20 border border-brand/15 text-brand text-[12px] font-medium mb-5">
+                <span className="w-1.5 h-1.5 rounded-full bg-brand animate-pulse" />
                 Project dashboard
+              </div>
+              <h1 className="text-[32px] font-light text-ink leading-[1.12] tracking-[-0.64px]">
+                Manage your verifications
               </h1>
-              <p className="mt-2 text-[15px] text-ink-faint leading-relaxed max-w-xl">
-                Deploy your task-verification contract on GenLayer. Your community submits proof, AI validators verify on-chain.
+              <p className="mt-2.5 text-[15px] text-ink-faint leading-relaxed max-w-lg">
+                Deploy a task-verification contract on GenLayer. Your community submits proof, and AI validators reach consensus on-chain.
               </p>
             </div>
 
-            {/* Contract setup */}
-            <div className="mb-8 p-5 rounded-xl bg-ink-subtle/[0.02] border border-border">
-              <label className="block text-[13px] font-medium text-ink-faint mb-2">
+            {/* Contract card */}
+            <div className="mb-10 p-5 rounded-2xl bg-canvas-panel border border-white/[0.06] shadow-card">
+              <label className="block text-[12px] font-medium text-ink-faint uppercase tracking-wider mb-3">
                 Contract address
               </label>
               <div className="flex gap-2">
                 <input
-                  value={projectContract}
-                  onChange={e => setProjectContract(e.target.value)}
-                  placeholder={envContract ? envContract : '0x…'}
-                  className="flex-1 bg-ink-subtle/[0.04] border border-border rounded-md px-3.5 py-2.5 text-[14px] text-ink-muted placeholder:text-ink-subtle/40 focus:outline-none focus:border-accent-violet/40 transition-colors font-mono"
+                  value={projContract} onChange={e => setProjContract(e.target.value)}
+                  placeholder={envContract || '0x…'}
+                  className="flex-1 bg-canvas border border-white/[0.08] rounded-lg px-4 py-2.5 text-[14px] text-ink-muted placeholder:text-ink-dim/50 font-mono focus:border-brand/40 focus:shadow-ring transition-all duration-200"
                 />
-                <button
-                  onClick={fetchProjectTasks}
-                  className="px-4 py-2 bg-ink-subtle/[0.06] hover:bg-ink-subtle/[0.10] border border-border rounded-md text-[13px] font-medium text-ink-muted transition-colors"
-                >
+                <button onClick={fetchProj}
+                  className="px-5 py-2.5 bg-canvas-surface hover:bg-canvas-raised border border-white/[0.08] rounded-lg text-[13px] font-medium text-ink-muted transition-all duration-200">
                   Load
                 </button>
               </div>
-              {!envContract && !projectContract && (
-                <p className="mt-2 text-[11px] text-ink-subtle/50">
-                  Deploy the contract on GenLayer Bradbury, then paste the address here.{' '}
-                  <a href="https://docs.genlayer.com" target="_blank" rel="noopener" className="text-accent-violet/70 hover:text-accent-violet underline underline-offset-2">
-                    Docs →
-                  </a>
+              {!envContract && !projContract && (
+                <p className="mt-3 text-[12px] text-ink-dim">
+                  Deploy on GenLayer Bradbury, then paste the address.{' '}
+                  <a href="https://docs.genlayer.com" target="_blank" rel="noopener" className="text-brand/70 hover:text-brand underline underline-offset-2">Docs →</a>
                 </p>
               )}
             </div>
 
-            {/* Stats */}
-            {projValid && (
+            {/* Dashboard */}
+            {projContract.startsWith('0x') && (
               <>
-                <div className="flex gap-8 mb-8">
+                {/* Stats row */}
+                <div className="grid grid-cols-3 gap-4 mb-8">
                   {[
-                    { label: 'Total', value: taskCount },
-                    { label: 'Verified', value: verifiedCount },
-                    { label: 'Pending', value: pendingCount },
+                    { label: 'Submissions', value: taskCount },
+                    { label: 'Verified', value: verifiedN },
+                    { label: 'Pending', value: pendingN },
                   ].map(s => (
-                    <div key={s.label}>
-                      <div className="text-[11px] font-medium text-ink-subtle uppercase tracking-wide">{s.label}</div>
-                      <div className="text-[24px] font-semibold text-ink leading-tight tracking-[-0.288px]">{s.value}</div>
+                    <div key={s.label} className="p-4 rounded-xl bg-canvas-panel border border-white/[0.05] shadow-sm">
+                      <div className="text-[11px] font-medium text-ink-subtle uppercase tracking-widest mb-1">{s.label}</div>
+                      <div className="text-[28px] font-light text-ink tracking-[-0.56px]">{s.value}</div>
                     </div>
                   ))}
                 </div>
 
                 {/* Verify all */}
-                {pendingCount > 0 && address && (
-                  <button
-                    onClick={projectVerifyAll}
-                    className="mb-6 px-4 py-2 bg-accent-lavender/15 hover:bg-accent-lavender/25 border border-accent-lavender/20 rounded-md text-[13px] font-medium text-accent-lavender transition-colors"
-                  >
-                    Verify all pending ({pendingCount})
+                {pendingN > 0 && address && (
+                  <button onClick={verifyAll}
+                    className="mb-8 px-5 py-2.5 bg-brand-glow/20 hover:bg-brand-glow/30 border border-brand/20 rounded-lg text-[13px] font-medium text-brand transition-all duration-200">
+                    Verify all pending ({pendingN})
                   </button>
                 )}
 
-                {/* Tasks list */}
+                {/* Tasks */}
                 <section>
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-[15px] font-semibold text-ink">Submissions</h2>
-                    <button onClick={fetchProjectTasks} disabled={projectLoading}
-                      className="text-[12px] font-medium text-ink-faint/60 hover:text-ink-faint transition-colors">
-                      {projectLoading ? 'Loading…' : 'Refresh'}
+                  <div className="flex items-center justify-between mb-5">
+                    <h2 className="text-[16px] font-medium text-ink">Submissions</h2>
+                    <button onClick={fetchProj} disabled={projLoading}
+                      className="text-[12px] font-medium text-ink-dim hover:text-ink-faint transition-colors">
+                      {projLoading ? 'Refreshing…' : 'Refresh'}
                     </button>
                   </div>
 
                   {taskCount === 0 ? (
-                    <div className="py-16 text-center rounded-xl border border-border-subtle bg-ink-subtle/[0.01]">
-                      <div className="w-10 h-10 mx-auto mb-3 rounded-full bg-ink-subtle/[0.04] flex items-center justify-center">
-                        <DocIcon />
+                    <div className="py-20 text-center rounded-2xl border border-white/[0.04] bg-canvas-panel/50 shadow-sm">
+                      <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-canvas-surface flex items-center justify-center shadow-sm">
+                        <FileSearch />
                       </div>
-                      <p className="text-[14px] text-ink-faint/50">No submissions yet</p>
-                      <p className="text-[12px] text-ink-subtle/40 mt-1">
-                        Share your contract address with your community to start receiving submissions.
+                      <h3 className="text-[16px] font-medium text-ink-muted mb-1">No submissions yet</h3>
+                      <p className="text-[13px] text-ink-dim max-w-sm mx-auto leading-relaxed">
+                        Share your contract address with your community. Submissions appear here in real time.
                       </p>
                     </div>
                   ) : (
                     <div className="space-y-3">
                       {taskList.map(([id, task]) => {
-                        const cfg = sc[task.status] ?? sc.pending
+                        const cfg = statusCfg[task.status] ?? statusCfg.pending
                         return (
-                          <div key={id} className="group p-4 rounded-xl bg-ink-subtle/[0.02] border border-border-subtle hover:border-border transition-colors">
+                          <article key={id}
+                            className="group p-5 rounded-2xl bg-canvas-panel border border-white/[0.05] shadow-card hover:shadow-card-hover transition-all duration-300"
+                          >
                             <div className="flex items-start gap-4">
-                              <div className="mt-0.5 shrink-0"><div className={`w-2 h-2 rounded-full ${cfg.dot}`} /></div>
+                              <div className="mt-1 shrink-0">
+                                <div className={`w-2.5 h-2.5 rounded-full ${cfg.dot} ring-2 ${statusRing[task.status]}`} />
+                              </div>
                               <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-2 mb-1.5">
-                                  <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full border ${cfg.cls}`}>{cfg.label}</span>
-                                  <span className="text-[11px] font-medium text-ink-subtle/50 font-mono">{id}</span>
+                                <div className="flex items-center gap-2 mb-2">
+                                  <span className={`text-[11px] font-medium px-2.5 py-0.5 rounded-full border ${cfg.badge}`}>
+                                    {cfg.label}
+                                  </span>
+                                  <span className="text-[11px] font-medium text-ink-dim font-mono">{id}</span>
                                 </div>
-                                <p className="text-[14px] text-ink-muted">
-                                  <span className="font-medium text-ink">{task.action_type}</span>
+                                <p className="text-[14px] text-ink-muted leading-relaxed">
+                                  <span className="font-medium text-ink capitalize">{task.action_type}</span>
                                   <span className="text-ink-faint/60"> by </span>
                                   <span className="font-medium text-ink">@{task.expected_handle}</span>
                                 </p>
-                                <p className="text-[11px] text-ink-faint/50 mt-0.5 font-mono">
+                                <p className="text-[11px] text-ink-dim mt-1 font-mono">
                                   Submitter: {fmtAddr(task.submitter)}
                                 </p>
-                                <p className="text-[12px] text-ink-faint/50 truncate font-mono mt-0.5">{task.tweet_url}</p>
+                                <p className="text-[12px] text-ink-dim truncate font-mono mt-0.5 opacity-60">
+                                  {task.tweet_url}
+                                </p>
                                 {task.verdict_reason && (
-                                  <p className="text-[12px] text-ink-faint/60 mt-1.5 italic leading-relaxed">
-                                    &ldquo;{task.verdict_reason}&rdquo;
-                                  </p>
+                                  <div className="mt-3 p-3 rounded-lg bg-canvas border border-white/[0.04]">
+                                    <p className="text-[12px] text-ink-faint/70 italic leading-relaxed">
+                                      &ldquo;{task.verdict_reason}&rdquo;
+                                    </p>
+                                  </div>
                                 )}
                               </div>
                               {task.status === 'pending' && (
-                                <button onClick={() => projectVerify(id)} disabled={verifying === id}
-                                  className="shrink-0 h-8 px-3.5 rounded-md text-[12px] font-medium bg-accent-lavender/15 hover:bg-accent-lavender/25 disabled:bg-ink-subtle/[0.06] disabled:text-ink-subtle/30 text-accent-lavender border border-accent-lavender/20 transition-colors">
+                                <button onClick={() => verifyOne(id)} disabled={verifying === id}
+                                  className="shrink-0 h-9 px-4 rounded-lg text-[12px] font-medium bg-brand-glow/15 hover:bg-brand-glow/25 disabled:bg-canvas-surface disabled:text-ink-dim/40 text-brand border border-brand/15 transition-all duration-200">
                                   {verifying === id ? 'Verifying…' : 'Verify'}
                                 </button>
                               )}
                             </div>
-                          </div>
+                          </article>
                         )
                       })}
                     </div>
@@ -455,195 +418,225 @@ export default function Home() {
                 </section>
               </>
             )}
-          </>
+          </div>
         )}
 
-        {/* ─── COMMUNITY VIEW ────────────────────────── */}
+        {/* ═══ COMMUNITY VIEW ═══════════════════════════ */}
         {role === 'community' && (
-          <>
+          <div key={viewKey} className="animate-fade-in">
             {/* Hero */}
-            <div className="mb-8">
-              <h1 className="text-[28px] font-semibold text-ink leading-[1.15] tracking-[-0.616px]">
-                Complete tasks
+            <div className="mb-10">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-success-muted/60 border border-success/20 text-success text-[12px] font-medium mb-5">
+                <CheckBadge />
+                Community
+              </div>
+              <h1 className="text-[32px] font-light text-ink leading-[1.12] tracking-[-0.64px]">
+                Complete tasks, get verified
               </h1>
-              <p className="mt-2 text-[15px] text-ink-faint leading-relaxed max-w-xl">
-                Enter a project&apos;s contract address, submit proof of completed social tasks, and get verified on-chain.
+              <p className="mt-2.5 text-[15px] text-ink-faint leading-relaxed max-w-lg">
+                Enter a project&apos;s contract address, submit proof of completed social tasks, and earn on-chain verification.
               </p>
             </div>
 
             {/* Contract input */}
-            <div className="mb-8 p-5 rounded-xl bg-ink-subtle/[0.02] border border-border">
-              <label className="block text-[13px] font-medium text-ink-faint mb-2">
+            <div className="mb-10 p-5 rounded-2xl bg-canvas-panel border border-white/[0.06] shadow-card">
+              <label className="block text-[12px] font-medium text-ink-faint uppercase tracking-wider mb-3">
                 Project contract
               </label>
               <input
-                value={communityContract}
-                onChange={e => setCommunityContract(e.target.value)}
-                placeholder="0x…"
-                className="w-full bg-ink-subtle/[0.04] border border-border rounded-md px-3.5 py-2.5 text-[14px] text-ink-muted placeholder:text-ink-subtle/40 focus:outline-none focus:border-accent-violet/40 transition-colors font-mono"
+                value={commContract} onChange={e => setCommContract(e.target.value)}
+                placeholder="Paste the contract address shared by the project…"
+                className="w-full bg-canvas border border-white/[0.08] rounded-lg px-4 py-2.5 text-[14px] text-ink-muted placeholder:text-ink-dim/50 font-mono focus:border-brand/40 focus:shadow-ring transition-all duration-200"
               />
-              <p className="mt-2 text-[11px] text-ink-subtle/50">
-                Paste the contract address shared by the project you want to participate in.
-              </p>
             </div>
 
-            {commValid && address && (
+            {commContract.startsWith('0x') && (
               <>
-                {/* My stats */}
-                <div className="flex gap-8 mb-8">
-                  {[
-                    { label: 'My submissions', value: taskCount },
-                    { label: 'Verified', value: verifiedCount },
-                    { label: 'Pending', value: pendingCount },
-                  ].map(s => (
-                    <div key={s.label}>
-                      <div className="text-[11px] font-medium text-ink-subtle uppercase tracking-wide">{s.label}</div>
-                      <div className="text-[24px] font-semibold text-ink leading-tight tracking-[-0.288px]">{s.value}</div>
+                {/* Connected + wallet guard */}
+                {!address ? (
+                  <div className="py-20 text-center rounded-2xl border border-white/[0.04] bg-canvas-panel/50 shadow-sm">
+                    <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-canvas-surface flex items-center justify-center shadow-sm">
+                      <WalletIcon />
                     </div>
-                  ))}
-                </div>
-
-                {/* Submit form */}
-                <form onSubmit={handleSubmit} className="mb-10 p-6 rounded-xl bg-ink-subtle/[0.02] border border-border">
-                  <h2 className="text-[15px] font-semibold text-ink mb-5">Submit proof</h2>
-
-                  <div className="grid gap-5">
-                    {/* Screenshot */}
-                    <div>
-                      <label className="block text-[13px] font-medium text-ink-faint mb-2">Screenshot</label>
-                      <label className={`
-                        relative flex flex-col items-center justify-center w-full h-40 rounded-lg border border-dashed cursor-pointer transition-colors
-                        ${screenshotPreview ? 'border-border bg-canvas-surface' : 'border-border-subtle hover:border-border bg-ink-subtle/[0.01]'}
-                      `}>
-                        {screenshotPreview ? (
-                          <img src={screenshotPreview} alt="Preview" className="absolute inset-0 w-full h-full object-contain rounded-lg p-1" />
-                        ) : (
-                          <div className="text-center">
-                            <div className="mb-2"><ImageIcon /></div>
-                            <span className="text-[13px] text-ink-faint/60">Drop screenshot or click</span>
-                          </div>
-                        )}
-                        <input type="file" accept="image/png,image/jpeg,image/webp"
-                          onChange={e => handleScreenshot(e.target.files?.[0])}
-                          className="absolute inset-0 opacity-0 cursor-pointer" />
-                      </label>
-                      {screenshotPreview && (
-                        <button type="button" onClick={() => handleScreenshot(undefined)}
-                          className="mt-2 text-[12px] text-ink-faint/60 hover:text-ink-faint transition-colors">Remove</button>
-                      )}
-                    </div>
-
-                    {/* Tweet URL */}
-                    <div>
-                      <label className="block text-[13px] font-medium text-ink-faint mb-2">Tweet URL</label>
-                      <input value={tweetUrl} onChange={e => setTweetUrl(e.target.value)}
-                        placeholder="https://x.com/username/status/..."
-                        className="w-full bg-ink-subtle/[0.04] border border-border rounded-md px-3.5 py-2.5 text-[14px] text-ink-muted placeholder:text-ink-subtle/40 focus:outline-none focus:border-accent-violet/40 transition-colors font-mono" />
-                    </div>
-
-                    {/* Handle + Action */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-[13px] font-medium text-ink-faint mb-2">Your X handle</label>
-                        <input value={handle} onChange={e => setHandle(e.target.value.replace('@',''))}
-                          placeholder="username"
-                          className="w-full bg-ink-subtle/[0.04] border border-border rounded-md px-3.5 py-2.5 text-[14px] text-ink-muted placeholder:text-ink-subtle/40 focus:outline-none focus:border-accent-violet/40 transition-colors" />
-                      </div>
-                      <div>
-                        <label className="block text-[13px] font-medium text-ink-faint mb-2">Action</label>
-                        <select value={action} onChange={e => setAction(e.target.value)}
-                          className="w-full bg-ink-subtle/[0.04] border border-border rounded-md px-3.5 py-2.5 text-[14px] text-ink-muted focus:outline-none focus:border-accent-violet/40 transition-colors appearance-none cursor-pointer"
-                          style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%238a8f98' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center' }}>
-                          {ACTION_TYPES.map(a => (
-                            <option key={a} value={a}>{a.charAt(0).toUpperCase() + a.slice(1)}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
+                    <h3 className="text-[16px] font-medium text-ink-muted mb-1">Connect your wallet</h3>
+                    <p className="text-[13px] text-ink-dim">Connect to submit proof and track your verifications.</p>
                   </div>
-
-                  <button type="submit" disabled={submitting || !screenshot || !tweetUrl || !handle}
-                    className="mt-6 w-full h-10 bg-accent hover:bg-accent-hover disabled:bg-ink-subtle/[0.06] disabled:text-ink-subtle/30 disabled:cursor-not-allowed text-white text-[14px] font-medium rounded-md transition-colors duration-150">
-                    {uploading ? 'Uploading…' : submitting ? 'Submitting…' : 'Submit proof'}
-                  </button>
-                </form>
-
-                {/* My tasks */}
-                <section>
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-[15px] font-semibold text-ink">My submissions</h2>
-                    <button onClick={fetchMyTasks} disabled={myTasksLoading}
-                      className="text-[12px] font-medium text-ink-faint/60 hover:text-ink-faint transition-colors">
-                      {myTasksLoading ? 'Loading…' : 'Refresh'}
-                    </button>
-                  </div>
-
-                  {taskCount === 0 ? (
-                    <div className="py-12 text-center rounded-xl border border-border-subtle bg-ink-subtle/[0.01]">
-                      <div className="w-10 h-10 mx-auto mb-3 rounded-full bg-ink-subtle/[0.04] flex items-center justify-center">
-                        <DocIcon />
-                      </div>
-                      <p className="text-[14px] text-ink-faint/50">No submissions yet</p>
-                      <p className="text-[12px] text-ink-subtle/40 mt-1">Complete a task and submit your proof above.</p>
+                ) : (
+                  <>
+                    {/* Stats */}
+                    <div className="grid grid-cols-3 gap-4 mb-8">
+                      {[
+                        { label: 'Submitted', value: taskCount },
+                        { label: 'Verified', value: verifiedN },
+                        { label: 'Pending', value: pendingN },
+                      ].map(s => (
+                        <div key={s.label} className="p-4 rounded-xl bg-canvas-panel border border-white/[0.05] shadow-sm">
+                          <div className="text-[11px] font-medium text-ink-subtle uppercase tracking-widest mb-1">{s.label}</div>
+                          <div className="text-[28px] font-light text-ink tracking-[-0.56px]">{s.value}</div>
+                        </div>
+                      ))}
                     </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {taskList.map(([id, task]) => {
-                        const cfg = sc[task.status] ?? sc.pending
-                        return (
-                          <div key={id} className="group p-4 rounded-xl bg-ink-subtle/[0.02] border border-border-subtle hover:border-border transition-colors">
-                            <div className="flex items-start gap-4">
-                              <div className="mt-0.5 shrink-0"><div className={`w-2 h-2 rounded-full ${cfg.dot}`} /></div>
-                              <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-2 mb-1.5">
-                                  <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full border ${cfg.cls}`}>{cfg.label}</span>
-                                  <span className="text-[11px] font-medium text-ink-subtle/50 font-mono">{id}</span>
-                                </div>
-                                <p className="text-[14px] text-ink-muted">
-                                  <span className="font-medium text-ink">{task.action_type}</span>
-                                  <span className="text-ink-faint/60"> by </span>
-                                  <span className="font-medium text-ink">@{task.expected_handle}</span>
-                                </p>
-                                <p className="text-[12px] text-ink-faint/50 truncate font-mono mt-0.5">{task.tweet_url}</p>
-                                {task.verdict_reason && (
-                                  <p className="text-[12px] text-ink-faint/60 mt-1.5 italic leading-relaxed">
-                                    &ldquo;{task.verdict_reason}&rdquo;
-                                  </p>
-                                )}
+
+                    {/* Submit form */}
+                    <form onSubmit={submitProof} className="mb-12 p-6 rounded-2xl bg-canvas-panel border border-white/[0.06] shadow-card">
+                      <h2 className="text-[16px] font-medium text-ink mb-6">Submit proof</h2>
+
+                      <div className="grid gap-5">
+                        {/* Screenshot */}
+                        <div>
+                          <label className="block text-[12px] font-medium text-ink-faint uppercase tracking-wider mb-2.5">
+                            Screenshot
+                          </label>
+                          <label className={`
+                            relative flex flex-col items-center justify-center w-full h-44 rounded-xl border-2 border-dashed cursor-pointer transition-all duration-200
+                            ${preview
+                              ? 'border-brand/20 bg-canvas-surface'
+                              : 'border-white/[0.06] hover:border-white/[0.12] bg-canvas'
+                            }
+                          `}>
+                            {preview ? (
+                              <img src={preview} alt="Preview" className="absolute inset-0 w-full h-full object-contain rounded-xl p-2" />
+                            ) : (
+                              <div className="text-center">
+                                <div className="mb-2"><UploadCloud /></div>
+                                <span className="text-[13px] text-ink-dim">Drop screenshot or click to browse</span>
+                                <span className="block text-[11px] text-ink-dim/60 mt-1">PNG, JPEG, WebP</span>
                               </div>
-                            </div>
+                            )}
+                            <input type="file" accept="image/png,image/jpeg,image/webp"
+                              onChange={e => handleFile(e.target.files?.[0])}
+                              className="absolute inset-0 opacity-0 cursor-pointer" />
+                          </label>
+                          {preview && (
+                            <button type="button" onClick={() => handleFile(undefined)}
+                              className="mt-2 text-[12px] text-ink-dim hover:text-ink-faint transition-colors">Remove</button>
+                          )}
+                        </div>
+
+                        {/* Tweet URL */}
+                        <div>
+                          <label className="block text-[12px] font-medium text-ink-faint uppercase tracking-wider mb-2.5">Tweet URL</label>
+                          <input value={tweetUrl} onChange={e => setTweetUrl(e.target.value)}
+                            placeholder="https://x.com/username/status/…"
+                            className="w-full bg-canvas border border-white/[0.08] rounded-lg px-4 py-2.5 text-[14px] text-ink-muted placeholder:text-ink-dim/50 font-mono focus:border-brand/40 focus:shadow-ring transition-all duration-200" />
+                        </div>
+
+                        {/* Handle + Action */}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-[12px] font-medium text-ink-faint uppercase tracking-wider mb-2.5">Your handle</label>
+                            <input value={handle} onChange={e => setHandle(e.target.value.replace('@',''))}
+                              placeholder="username"
+                              className="w-full bg-canvas border border-white/[0.08] rounded-lg px-4 py-2.5 text-[14px] text-ink-muted placeholder:text-ink-dim/50 focus:border-brand/40 focus:shadow-ring transition-all duration-200" />
                           </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                </section>
+                          <div>
+                            <label className="block text-[12px] font-medium text-ink-faint uppercase tracking-wider mb-2.5">Action</label>
+                            <select value={action} onChange={e => setAction(e.target.value)}
+                              className="w-full bg-canvas border border-white/[0.08] rounded-lg px-4 py-2.5 text-[14px] text-ink-muted focus:border-brand/40 focus:shadow-ring transition-all duration-200 appearance-none cursor-pointer"
+                              style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238b8f9a' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center' }}
+                            >
+                              {ACTIONS.map(a => (
+                                <option key={a} value={a} className="bg-canvas-panel text-ink-muted">{a.charAt(0).toUpperCase() + a.slice(1)}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+
+                      <button type="submit" disabled={submitting || !screenshot || !tweetUrl || !handle}
+                        className="mt-6 w-full h-11 bg-brand hover:bg-brand-hover disabled:bg-canvas-surface disabled:text-ink-dim/30 disabled:cursor-not-allowed disabled:shadow-none text-white text-[14px] font-medium rounded-lg shadow-glow transition-all duration-200">
+                        {uploading ? 'Uploading screenshot…' : submitting ? 'Confirming on-chain…' : 'Submit proof'}
+                      </button>
+                    </form>
+
+                    {/* My tasks */}
+                    <section>
+                      <div className="flex items-center justify-between mb-5">
+                        <h2 className="text-[16px] font-medium text-ink">My submissions</h2>
+                        <button onClick={fetchMy} disabled={myLoading}
+                          className="text-[12px] font-medium text-ink-dim hover:text-ink-faint transition-colors">
+                          {myLoading ? 'Refreshing…' : 'Refresh'}
+                        </button>
+                      </div>
+
+                      {taskCount === 0 ? (
+                        <div className="py-16 text-center rounded-2xl border border-white/[0.04] bg-canvas-panel/50 shadow-sm">
+                          <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-canvas-surface flex items-center justify-center shadow-sm">
+                            <FileSearch />
+                          </div>
+                          <h3 className="text-[16px] font-medium text-ink-muted mb-1">No submissions yet</h3>
+                          <p className="text-[13px] text-ink-dim">Complete a task and submit your proof above.</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {taskList.map(([id, task]) => {
+                            const cfg = statusCfg[task.status] ?? statusCfg.pending
+                            return (
+                              <article key={id}
+                                className="group p-5 rounded-2xl bg-canvas-panel border border-white/[0.05] shadow-card hover:shadow-card-hover transition-all duration-300"
+                              >
+                                <div className="flex items-start gap-4">
+                                  <div className="mt-1 shrink-0">
+                                    <div className={`w-2.5 h-2.5 rounded-full ${cfg.dot} ring-2 ${statusRing[task.status]}`} />
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <span className={`text-[11px] font-medium px-2.5 py-0.5 rounded-full border ${cfg.badge}`}>
+                                        {cfg.label}
+                                      </span>
+                                      <span className="text-[11px] font-medium text-ink-dim font-mono">{id}</span>
+                                    </div>
+                                    <p className="text-[14px] text-ink-muted leading-relaxed">
+                                      <span className="font-medium text-ink capitalize">{task.action_type}</span>
+                                      <span className="text-ink-faint/60"> by </span>
+                                      <span className="font-medium text-ink">@{task.expected_handle}</span>
+                                    </p>
+                                    <p className="text-[12px] text-ink-dim truncate font-mono mt-0.5 opacity-60">
+                                      {task.tweet_url}
+                                    </p>
+                                    {task.verdict_reason && (
+                                      <div className="mt-3 p-3 rounded-lg bg-canvas border border-white/[0.04]">
+                                        <p className="text-[12px] text-ink-faint/70 italic leading-relaxed">
+                                          &ldquo;{task.verdict_reason}&rdquo;
+                                        </p>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </article>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </section>
+                  </>
+                )}
               </>
             )}
-
-            {commValid && !address && (
-              <div className="py-16 text-center rounded-xl border border-border-subtle bg-ink-subtle/[0.01]">
-                <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-ink-subtle/[0.04] flex items-center justify-center">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="text-ink-faint/30">
-                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                  </svg>
-                </div>
-                <p className="text-[15px] text-ink-faint/60 font-medium">Connect your wallet</p>
-                <p className="text-[12px] text-ink-subtle/40 mt-1">You need to connect to submit proof and track your tasks.</p>
-              </div>
-            )}
-          </>
+          </div>
         )}
-
-        {/* ─── Footer ─────────────────────────────────── */}
-        <div className="mt-16 pt-8 border-t border-border-subtle text-center">
-          <p className="text-[11px] text-ink-subtle/40">
-            Built on <a href="https://genlayer.com" target="_blank" rel="noopener" className="text-accent-violet/60 hover:text-accent-violet underline underline-offset-2">GenLayer</a>
-            <span className="mx-2">·</span>
-            AI-powered verification
-          </p>
-        </div>
       </div>
+
+      {/* ═══════════════════════════════════════════════════════
+          FOOTER
+      ═══════════════════════════════════════════════════════ */}
+      <footer className="border-t border-white/[0.04]">
+        <div className="max-w-5xl mx-auto px-6 py-8 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-[12px] text-ink-dim">
+            <span className="w-4 h-4 rounded bg-brand/20 flex items-center justify-center">
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="text-brand">
+                <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+              </svg>
+            </span>
+            Powered by GenLayer AI consensus
+          </div>
+          <div className="flex items-center gap-4 text-[12px] text-ink-dim">
+            <a href="https://genlayer.com" target="_blank" rel="noopener" className="hover:text-ink-faint transition-colors">GenLayer</a>
+            <span className="text-white/[0.08]">·</span>
+            <a href="https://docs.genlayer.com" target="_blank" rel="noopener" className="hover:text-ink-faint transition-colors">Docs</a>
+          </div>
+        </div>
+      </footer>
     </main>
   )
 }

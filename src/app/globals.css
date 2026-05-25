@@ -2,19 +2,42 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Linear-inspired dark canvas */
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
 body {
-  @apply bg-canvas text-ink-muted antialiased;
+  @apply bg-canvas text-ink-muted;
   font-feature-settings: 'cv01', 'ss03';
 }
 
-/* Scrollbar styling */
-::-webkit-scrollbar { width: 6px; }
+::selection {
+  @apply bg-brand/30 text-ink;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
   background: rgba(255,255,255,0.08);
-  border-radius: 3px;
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: content-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.14);
+  background-clip: content-box;
+}
+
+/* Focus ring */
+*:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(99,91,255,0.25);
+  border-radius: 2px;
+}
+
+/* Utility */
+.no-ring:focus-visible {
+  box-shadow: none;
 }
