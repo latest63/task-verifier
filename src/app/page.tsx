@@ -1,9 +1,9 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import {
-  createPublicClient, createWalletClient, custom, http, defineChain,
-} from 'viem'
+import { useAccount, useWalletClient } from 'wagmi'
+import { createPublicClient, http, defineChain } from 'viem'
+import ConnectWallet from '../../components/ConnectWallet'
 
 const bradbury = defineChain({
   id: 4221, name: 'GenLayer Bradbury Testnet',
@@ -31,15 +31,14 @@ type Role = 'project' | 'community'
 const ACTIONS = ['like', 'retweet', 'reply', 'post'] as const
 
 const sc: Record<string, { label: string; dot: string; badge: string; icon: string }> = {
-  pending:  { label: 'Pending',  dot: 'bg-warning',          badge: 'text-amber-700 bg-warning-soft border-warning-border', icon: '⏳' },
-  verified: { label: 'Verified', dot: 'bg-success',          badge: 'text-emerald-700 bg-success-soft border-success-border', icon: '✅' },
-  rejected: { label: 'Rejected', dot: 'bg-danger',           badge: 'text-red-700 bg-danger-soft border-danger-border', icon: '❌' },
+  pending:  { label: 'Pending',  dot: 'bg-warning',  badge: 'text-amber-700 bg-warning-soft border-warning-border', icon: '⏳' },
+  verified: { label: 'Verified', dot: 'bg-success',  badge: 'text-emerald-700 bg-success-soft border-success-border', icon: '✅' },
+  rejected: { label: 'Rejected', dot: 'bg-danger',   badge: 'text-red-700 bg-danger-soft border-danger-border', icon: '❌' },
 }
 
 const fmtAddr = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`
 
-// ── Inline icons ───────────────────────────────────────────────
-const Sparkle = ({ size = 16 }: { size?: number }) => (
+const Sparkle = ({ size = 12 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M12 2l1.5 5.5L19 9l-5.5 1.5L12 16l-1.5-5.5L5 9l5.5-1.5z"/><path d="M19 16l-.5 2L21 19l-2.5.5L18 22l-.5-2.5L15 19l2.5-.5z"/>
   </svg>
@@ -59,19 +58,14 @@ const FileSearch = () => (
     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><circle cx="11.5" cy="14.5" r="2.5"/><line x1="13.5" y1="16.5" x2="16" y2="19"/>
   </svg>
 )
-const Trophy = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="text-brand/30">
-    <path d="M6 9H4.5A2.5 2.5 0 0 1 2 6.5v0A2.5 2.5 0 0 1 4.5 4H6"/><path d="M18 9h1.5A2.5 2.5 0 0 0 22 6.5v0A2.5 2.5 0 0 0 19.5 4H18"/><path d="M6 4h12v3a6 6 0 0 1-12 0V4z"/><path d="M12 4v7"/><path d="M9 20h6"/><path d="M12 17v3"/>
-  </svg>
-)
 
-// ── Component ──────────────────────────────────────────────────
 export default function Home() {
   const envContract = process.env.NEXT_PUBLIC_VERIFIER_CONTRACT || ''
 
+  const { address, isConnected } = useAccount()
+  const { data: walletClient } = useWalletClient()
+
   const [role, setRole] = useState<Role>('project')
-  const [address, setAddress] = useState<string | null>(null)
-  const [connecting, setConnecting] = useState(false)
   const [viewKey, setViewKey] = useState(0)
 
   const [projContract, setProjContract] = useState(envContract)
@@ -90,30 +84,6 @@ export default function Home() {
   const [myLoading, setMyLoading] = useState(false)
   const [verifying, setVerifying] = useState<string | null>(null)
 
-  const connectWallet = useCallback(async () => {
-    if (typeof window === 'undefined' || !window.ethereum) { alert('Install MetaMask'); return }
-    setConnecting(true)
-    try {
-      const accounts: string[] = await window.ethereum.request({ method: 'eth_requestAccounts' })
-      setAddress(accounts[0])
-      try { await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0x107d' }] }) } catch {
-        await window.ethereum.request({ method: 'wallet_addEthereumChain', params: [{
-          chainId: '0x107d', chainName: 'GenLayer Bradbury Testnet',
-          nativeCurrency: { name: 'GEN', symbol: 'GEN', decimals: 18 },
-          rpcUrls: ['https://rpc-bradbury.genlayer.com'],
-          blockExplorerUrls: ['https://explorer-bradbury.genlayer.com'],
-        }] })
-      }
-    } catch (e) { console.error(e) } finally { setConnecting(false) }
-  }, [])
-
-  useEffect(() => {
-    if (typeof window === 'undefined' || !window.ethereum) return
-    const h = (a: string[]) => setAddress(a[0] ?? null)
-    window.ethereum.on?.('accountsChanged', h)
-    return () => { window.ethereum?.removeListener?.('accountsChanged', h) }
-  }, [])
-
   const switchRole = (r: Role) => { setRole(r); setViewKey(v => v + 1) }
 
   const readAll = async (addr: string) => {
@@ -129,12 +99,15 @@ export default function Home() {
   useEffect(() => { if (role === 'project') { fetchProj(); const i = setInterval(fetchProj, 8000); return () => clearInterval(i) } }, [role, fetchProj])
 
   const verifyOne = async (taskId: string) => {
-    if (!address || !projContract) return
+    if (!address || !projContract || !walletClient) return
     setVerifying(taskId)
     try {
-      const wc = createWalletClient({ chain: bradbury, transport: custom(window.ethereum!) })
-      const hash = await wc.writeContract({ account: address as `0x${string}`, address: projContract as `0x${string}`, abi: taskAbi, functionName: 'verify', args: [taskId] })
-      await publicClient.waitForTransactionReceipt({ hash }); await fetchProj()
+      const hash = await walletClient.writeContract({
+        account: address, address: projContract as `0x${string}`, abi: taskAbi, functionName: 'verify', args: [taskId],
+        chain: bradbury,
+      } as any)
+      await publicClient.waitForTransactionReceipt({ hash })
+      await fetchProj()
     } catch (e: any) { alert(e?.message ?? 'Failed') } finally { setVerifying(null) }
   }
   const verifyAll = async () => { for (const [id] of Object.entries(projTasks).filter(([, t]) => t.status === 'pending')) await verifyOne(id) }
@@ -153,15 +126,18 @@ export default function Home() {
 
   const submitProof = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!address || !commContract || !screenshot) return
+    if (!address || !commContract || !screenshot || !walletClient) return
     setSubmitting(true)
     try {
       setUploading(true)
       const fd = new FormData(); fd.append('file', screenshot)
       const up = await fetch('/api/upload', { method: 'POST', body: fd })
       const { url } = await up.json(); setUploading(false)
-      const wc = createWalletClient({ chain: bradbury, transport: custom(window.ethereum!) })
-      const hash = await wc.writeContract({ account: address as `0x${string}`, address: commContract as `0x${string}`, abi: taskAbi, functionName: 'submit_task', args: [tweetUrl, url, handle, action] })
+      const hash = await walletClient.writeContract({
+        account: address, address: commContract as `0x${string}`, abi: taskAbi,
+        functionName: 'submit_task', args: [tweetUrl, url, handle, action],
+        chain: bradbury,
+      } as any)
       await publicClient.waitForTransactionReceipt({ hash }); await fetchMy()
       setScreenshot(null); setPreview(null); setTweetUrl(''); setHandle(''); setAction('like')
     } catch (e: any) { alert(e?.message ?? 'Failed') } finally { setSubmitting(false); setUploading(false) }
@@ -176,7 +152,6 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-canvas">
-      {/* ═══════ HEADER ══════════════════════════════════════ */}
       <header className="sticky top-0 z-50 bg-white/70 backdrop-blur-xl border-b border-black/[0.06]">
         <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -185,7 +160,6 @@ export default function Home() {
             </div>
             <span className="text-[16px] font-semibold text-ink tracking-tight">Task Verifier</span>
           </div>
-
           <div className="flex bg-canvas-raised rounded-xl border border-black/[0.06] p-1">
             {(['project', 'community'] as const).map(r => (
               <button key={r} onClick={() => switchRole(r)}
@@ -197,26 +171,11 @@ export default function Home() {
               </button>
             ))}
           </div>
-
-          <button onClick={connectWallet} disabled={connecting}
-            className={`h-9 px-4 rounded-xl text-[13px] font-semibold transition-all duration-200 flex items-center gap-1.5 ${
-              address
-                ? 'bg-success-soft text-emerald-700 border border-success-border shadow-sm'
-                : 'bg-brand-gradient text-white shadow-glow hover:shadow-xl hover:scale-[1.02]'
-            }`}>
-            {connecting ? (
-              <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            ) : address ? (
-              <><span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />{fmtAddr(address)}</>
-            ) : (
-              <>Connect</>
-            )}
-          </button>
+          <ConnectWallet />
         </div>
       </header>
 
       <div className="max-w-5xl mx-auto px-6 py-12 md:py-16">
-        {/* ═══ PROJECT ═══════════════════════════════════════ */}
         {role === 'project' && (
           <div key={viewKey} className="animate-fade-in">
             <div className="relative mb-10 p-8 rounded-3xl bg-white border border-black/[0.05] shadow-card overflow-hidden">
@@ -225,9 +184,7 @@ export default function Home() {
                 <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-brand-soft border border-brand/15 text-brand text-[12px] font-semibold mb-4">
                   <span className="w-2 h-2 rounded-full bg-brand animate-pulse" />For Projects
                 </div>
-                <h1 className="text-[34px] font-bold text-ink leading-[1.1] tracking-[-0.68px]">
-                  Manage verifications
-                </h1>
+                <h1 className="text-[34px] font-bold text-ink leading-[1.1] tracking-[-0.68px]">Manage verifications</h1>
                 <p className="mt-2 text-[16px] text-ink-faint leading-relaxed max-w-lg">
                   Deploy a contract, share it with your community, and let <span className="text-brand font-semibold">GenLayer AI</span> validate every submission on-chain.
                 </p>
@@ -241,9 +198,7 @@ export default function Home() {
                   placeholder={envContract || '0x…'}
                   className="flex-1 bg-canvas border border-black/[0.08] rounded-xl px-4 py-3 text-[14px] text-ink-muted placeholder:text-ink-subtle font-mono focus:border-brand/40 focus:shadow-ring transition-all duration-200" />
                 <button onClick={fetchProj}
-                  className="px-5 py-3 bg-brand-soft hover:bg-brand/10 border border-brand/15 rounded-xl text-[13px] font-semibold text-brand transition-all duration-200">
-                  Load
-                </button>
+                  className="px-5 py-3 bg-brand-soft hover:bg-brand/10 border border-brand/15 rounded-xl text-[13px] font-semibold text-brand transition-all duration-200">Load</button>
               </div>
             </div>
 
@@ -265,7 +220,7 @@ export default function Home() {
                   ))}
                 </div>
 
-                {pendingN > 0 && address && (
+                {pendingN > 0 && isConnected && (
                   <button onClick={verifyAll}
                     className="mb-8 px-6 py-3 bg-brand-gradient hover:opacity-90 text-white text-[13px] font-semibold rounded-xl shadow-glow transition-all duration-200">
                     ⚡ Verify all pending ({pendingN})
@@ -335,7 +290,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* ═══ COMMUNITY ════════════════════════════════════ */}
         {role === 'community' && (
           <div key={viewKey} className="animate-fade-in">
             <div className="relative mb-10 p-8 rounded-3xl bg-white border border-black/[0.05] shadow-card overflow-hidden">
@@ -344,9 +298,7 @@ export default function Home() {
                 <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-success-soft border border-success/20 text-emerald-700 text-[12px] font-semibold mb-4">
                   <ShieldCheck />For Community
                 </div>
-                <h1 className="text-[34px] font-bold text-ink leading-[1.1] tracking-[-0.68px]">
-                  Get verified on-chain
-                </h1>
+                <h1 className="text-[34px] font-bold text-ink leading-[1.1] tracking-[-0.68px]">Get verified on-chain</h1>
                 <p className="mt-2 text-[16px] text-ink-faint leading-relaxed max-w-lg">
                   Complete social tasks, submit proof, and earn <span className="text-brand font-semibold">verified status</span> powered by AI consensus.
                 </p>
@@ -361,10 +313,12 @@ export default function Home() {
             </div>
 
             {commContract.startsWith('0x') && (
-              !address ? (
+              !isConnected ? (
                 <div className="py-20 text-center rounded-3xl bg-white border border-black/[0.04] shadow-card">
                   <div className="w-16 h-16 mx-auto mb-5 rounded-2xl bg-brand-soft flex items-center justify-center">
-                    <Trophy />
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="text-brand/30">
+                      <path d="M6 9H4.5A2.5 2.5 0 0 1 2 6.5v0A2.5 2.5 0 0 1 4.5 4H6"/><path d="M18 9h1.5A2.5 2.5 0 0 0 22 6.5v0A2.5 2.5 0 0 0 19.5 4H18"/><path d="M6 4h12v3a6 6 0 0 1-12 0V4z"/><path d="M12 4v7"/><path d="M9 20h6"/><path d="M12 17v3"/>
+                    </svg>
                   </div>
                   <h3 className="text-[17px] font-bold text-ink mb-1.5">Connect your wallet</h3>
                   <p className="text-[14px] text-ink-faint">Connect to start submitting proof and earning verifications.</p>
@@ -389,7 +343,6 @@ export default function Home() {
 
                   <form onSubmit={submitProof} className="mb-12 p-6 rounded-2xl bg-white border border-black/[0.05] shadow-card">
                     <h2 className="text-[18px] font-bold text-ink mb-6">Submit proof</h2>
-
                     <div className="grid gap-5">
                       <div>
                         <label className="block text-[12px] font-semibold text-ink-faint uppercase tracking-wider mb-2.5">Screenshot</label>
@@ -413,14 +366,12 @@ export default function Home() {
                             className="mt-2 text-[12px] font-semibold text-ink-subtle hover:text-ink-faint transition-colors">Remove</button>
                         )}
                       </div>
-
                       <div>
                         <label className="block text-[12px] font-semibold text-ink-faint uppercase tracking-wider mb-2.5">Tweet URL</label>
                         <input value={tweetUrl} onChange={e => setTweetUrl(e.target.value)}
                           placeholder="https://x.com/username/status/…"
                           className="w-full bg-canvas border border-black/[0.08] rounded-xl px-4 py-3 text-[14px] text-ink-muted placeholder:text-ink-subtle font-mono focus:border-brand/40 focus:shadow-ring transition-all duration-200" />
                       </div>
-
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <label className="block text-[12px] font-semibold text-ink-faint uppercase tracking-wider mb-2.5">Your handle</label>
@@ -440,7 +391,6 @@ export default function Home() {
                         </div>
                       </div>
                     </div>
-
                     <button type="submit" disabled={submitting || !screenshot || !tweetUrl || !handle}
                       className="mt-6 w-full h-12 bg-brand-gradient hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[15px] font-bold rounded-xl shadow-glow transition-all duration-200">
                       {uploading ? '📤 Uploading…' : submitting ? '⛓️ Confirming on-chain…' : '✨ Submit proof'}
@@ -455,7 +405,6 @@ export default function Home() {
                         {myLoading ? 'Refreshing…' : 'Refresh'}
                       </button>
                     </div>
-
                     {total === 0 ? (
                       <div className="py-16 text-center rounded-3xl bg-white border border-black/[0.04] shadow-card">
                         <div className="w-16 h-16 mx-auto mb-5 rounded-2xl bg-brand-soft flex items-center justify-center">
@@ -503,12 +452,10 @@ export default function Home() {
         )}
       </div>
 
-      {/* ═══════ FOOTER ══════════════════════════════════════ */}
       <footer className="border-t border-black/[0.04] bg-white/50">
         <div className="max-w-5xl mx-auto px-6 py-6 flex items-center justify-between">
           <div className="flex items-center gap-2 text-[12px] font-semibold text-ink-subtle">
-            <Sparkle size={12} />
-            Powered by GenLayer AI consensus
+            <Sparkle />Powered by GenLayer AI consensus
           </div>
           <div className="flex items-center gap-4 text-[12px] font-semibold text-ink-subtle">
             <a href="https://genlayer.com" target="_blank" rel="noopener" className="hover:text-brand transition-colors">GenLayer</a>
