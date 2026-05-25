@@ -87,8 +87,8 @@ export default function Home() {
   // Wallet
   const [address, setAddress] = useState<string | null>(null)
   const [connecting, setConnecting] = useState(false)
-  // Contract
-  const [contractAddr, setContractAddr] = useState('')
+  // Contract — from env var, works locally (.env.local) and on Vercel
+  const contractAddr = process.env.NEXT_PUBLIC_VERIFIER_CONTRACT || ''
   // Form
   const [screenshot, setScreenshot] = useState<File | null>(null)
   const [tweetUrl, setTweetUrl] = useState('')
@@ -216,12 +216,16 @@ export default function Home() {
         </button>
       </div>
 
-      {/* Contract Address */}
-      <div className="mb-6">
-        <label className="block text-sm text-gray-400 mb-1">Contract Address (Bradbury)</label>
-        <input value={contractAddr} onChange={e => setContractAddr(e.target.value)} placeholder="0x..."
-          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2.5 text-sm text-gray-100 font-mono focus:outline-none focus:border-blue-500" />
-      </div>
+      {/* Contract not configured warning */}
+      {!contractAddr && (
+        <div className="mb-6 p-4 bg-red-950/30 border border-red-800/50 rounded-xl">
+          <p className="text-red-300 text-sm font-medium">Contract not configured</p>
+          <p className="text-red-400/70 text-xs mt-1">
+            Set <code className="bg-red-950/50 px-1.5 py-0.5 rounded text-red-300 text-xs">NEXT_PUBLIC_VERIFIER_CONTRACT</code> in
+            <code className="bg-red-950/50 px-1.5 py-0.5 rounded text-red-300 text-xs ml-1">.env.local</code> (local) or Vercel Environment Variables (production).
+          </p>
+        </div>
+      )}
 
       {/* Submit Form */}
       {address && contractAddr && (
