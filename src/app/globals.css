@@ -4,30 +4,16 @@
 
 * { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 
-body {
-  @apply bg-canvas text-ink-muted;
-  font-feature-settings: 'cv01', 'ss03';
-}
+body { @apply bg-canvas text-ink; }
 
-::selection { @apply bg-brand-soft text-brand; }
+::selection { @apply bg-brand/20 text-ink-deep; }
 
-/* Smooth scrollbar */
-::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb {
-  background: rgba(0,0,0,0.10);
-  border-radius: 4px;
-  border: 2px solid transparent;
-  background-clip: content-box;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(0,0,0,0.18);
-  background-clip: content-box;
-}
+::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius: 3px; }
 
-/* Focus ring */
 *:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(124,58,237,0.2);
-  border-radius: 3px;
+  box-shadow: 0 0 0 2px rgba(59,130,246,0.5);
+  border-radius: 2px;
 }
