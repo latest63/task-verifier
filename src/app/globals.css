@@ -1,4 +1,20 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-body { @apply bg-gray-950 text-gray-100 antialiased; }
+
+/* Linear-inspired dark canvas */
+body {
+  @apply bg-canvas text-ink-muted antialiased;
+  font-feature-settings: 'cv01', 'ss03';
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.08);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.12);
+}
