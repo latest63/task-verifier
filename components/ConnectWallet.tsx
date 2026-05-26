@@ -11,9 +11,9 @@ const ConnectWalletInner = dynamic(
         className="shrink-0 animate-pulse"
         style={{
           display: 'inline-block',
-          height: '44px',
-          width: '110px',
-          borderRadius: '10px',
+          height: '36px',
+          width: '90px',
+          borderRadius: '8px',
           backgroundColor: 'rgba(245, 78, 0, 0.2)',
         }}
       />
