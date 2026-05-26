@@ -38,6 +38,8 @@ const sc: Record<string, { label: string; style: string }> = {
 }
 const fmtAddr = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`
 
+const actionEmoji: Record<string, string> = { like: '❤️', retweet: '🔄', reply: '💬', post: '📝' }
+
 export default function Home() {
   const contractAddr = process.env.NEXT_PUBLIC_VERIFIER_CONTRACT || ''
   const { address, isConnected } = useAccount()
@@ -116,6 +118,17 @@ export default function Home() {
   const pendingN = Object.values(tasks).filter(t => t.status === 'pending').length
   const taskList = Object.entries(tasks).reverse()
 
+  // Leaderboard: group verified tasks by submitter
+  const leaderboard = Object.values(tasks)
+    .filter(t => t.status === 'verified')
+    .reduce((acc: Record<string, { addr: string; count: number; handle: string }>, t) => {
+      const key = t.submitter
+      if (!acc[key]) acc[key] = { addr: key, count: 0, handle: t.expected_handle }
+      acc[key].count++
+      return acc
+    }, {})
+  const ranked = Object.values(leaderboard).sort((a, b) => b.count - a.count).slice(0, 5)
+
   return (
     <main className="min-h-screen font-sans bg-canvas">
       <header className="sticky top-0 z-50 bg-canvas/90 backdrop-blur-sm border-b border-border">
@@ -132,7 +145,7 @@ export default function Home() {
                   className={`px-2.5 sm:px-4 py-1 text-[12px] sm:text-[14px] font-semibold rounded-sm transition-colors ${
                     view === v ? 'bg-brand-dark text-white' : 'text-ink-muted hover:text-brand'
                   }`}>
-                  {v === 'dashboard' ? 'Dashboard' : 'Submit'}
+                  {v === 'dashboard' ? 'Activity' : 'Submit'}
                 </button>
               ))}
             </div>
@@ -155,36 +168,72 @@ export default function Home() {
         {/* ═══ DASHBOARD ═══════════════════════════════════ */}
         {contractAddr && view === 'dashboard' && (
           <>
-            <div className="mb-6 sm:mb-10">
-              <h1 className="text-[24px] sm:text-[30px] font-extrabold text-ink-deep leading-[1.2] tracking-[-0.75px]">Dashboard</h1>
+            {/* Hero */}
+            <div className="mb-6 sm:mb-8">
+              <h1 className="text-[24px] sm:text-[30px] font-extrabold text-ink-deep leading-[1.2] tracking-[-0.75px]">Community Activity</h1>
               <p className="mt-2 text-[14px] sm:text-[16px] text-ink leading-[1.5] max-w-xl">
-                Monitor submissions from your community. GenLayer AI validators cross-reference proof against live tweets.
+                AI-verified proof of work. Earn recognition by completing tasks and submitting proof.
               </p>
             </div>
 
-            <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-8">
-              {[
-                { label: 'Submissions', value: total },
-                { label: 'Verified', value: verifiedN },
-                { label: 'Pending', value: pendingN },
-              ].map(s => (
-                <div key={s.label} className="p-2.5 sm:p-4 border border-border rounded-sm bg-canvas">
-                  <div className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-ink-faint mb-1">{s.label}</div>
-                  <div className="text-[22px] sm:text-[28px] font-bold text-ink-deep leading-tight">{s.value}</div>
+            {/* Stats + Quick CTA */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-8">
+              <div className="p-2.5 sm:p-4 border border-border rounded-sm bg-canvas text-center">
+                <div className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-ink-faint mb-1">Tasks</div>
+                <div className="text-[22px] sm:text-[28px] font-bold text-ink-deep leading-tight">{total}</div>
+              </div>
+              <div className="p-2.5 sm:p-4 border border-emerald-200 rounded-sm bg-emerald-50/50 text-center">
+                <div className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-emerald-600 mb-1">Verified ✓</div>
+                <div className="text-[22px] sm:text-[28px] font-bold text-emerald-700 leading-tight">{verifiedN}</div>
+              </div>
+              <div className="col-span-2 p-2.5 sm:p-4 border border-brand/20 rounded-sm bg-orange-50/40 flex flex-col sm:flex-row items-center justify-between gap-2">
+                <div>
+                  <div className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-ink-faint mb-1">Ready to earn?</div>
+                  <div className="text-[13px] sm:text-[14px] font-semibold text-ink leading-[1.4]">Complete a task and submit proof</div>
                 </div>
-              ))}
+                <button onClick={() => setView('submit')}
+                  className="shrink-0 h-9 px-4 sm:px-6 rounded-md text-[12px] sm:text-[13px] font-semibold text-white transition-all"
+                  style={{ backgroundColor: '#F54E00', border: 'none', cursor: 'pointer', boxShadow: '0 1px 4px rgba(245,78,0,0.25)' }}>
+                  Submit proof →
+                </button>
+              </div>
             </div>
 
+            {/* Leaderboard */}
+            {ranked.length > 0 && (
+              <section className="mb-8">
+                <h2 className="text-[14px] sm:text-[16px] font-bold text-ink-deep mb-3 flex items-center gap-2">
+                  🏆 Top Contributors
+                </h2>
+                <div className="border border-border rounded-sm bg-canvas overflow-hidden">
+                  {ranked.map((p, i) => (
+                    <div key={p.addr} className={`flex items-center justify-between px-3 sm:px-4 py-2.5 ${i < ranked.length - 1 ? 'border-b border-border' : ''}`}>
+                      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                        <span className={`text-[13px] sm:text-[14px] font-bold w-5 sm:w-6 text-center shrink-0 ${i === 0 ? 'text-brand' : i === 1 ? 'text-ink-muted' : i === 2 ? 'text-ink-faint' : 'text-ink-faint/50'}`}>
+                          {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`}
+                        </span>
+                        <span className="text-[13px] sm:text-[14px] font-semibold text-ink-deep truncate">@{p.handle}</span>
+                        <span className="hidden sm:inline text-[11px] text-ink-faint font-mono truncate">{fmtAddr(p.addr)}</span>
+                      </div>
+                      <span className="text-[12px] sm:text-[13px] font-bold text-brand shrink-0">{p.count} verified</span>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Admin verify */}
             {pendingN > 0 && isConnected && (
               <button onClick={verifyAll}
-                className="mb-8 px-5 py-2 bg-brand-dark hover:opacity-70 text-white text-[14px] font-semibold rounded-sm transition-all">
+                className="mb-6 px-5 py-2 bg-brand-dark hover:opacity-70 text-white text-[14px] font-semibold rounded-sm transition-all">
                 Verify all pending ({pendingN})
               </button>
             )}
 
+            {/* Activity Feed */}
             <section>
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-[16px] sm:text-[18px] font-bold text-ink-deep">Submissions</h2>
+                <h2 className="text-[16px] sm:text-[18px] font-bold text-ink-deep">Recent Activity</h2>
                 <button onClick={fetchTasks} disabled={loading}
                   className="text-[13px] font-semibold text-ink-muted hover:text-brand transition-colors">
                   {loading ? 'Refreshing…' : 'Refresh'}
@@ -193,34 +242,42 @@ export default function Home() {
 
               {total === 0 ? (
                 <div className="py-12 sm:py-16 text-center border border-border rounded-sm bg-canvas">
-                  <p className="text-[15px] sm:text-[16px] font-semibold text-ink-muted mb-1">No submissions yet</p>
+                  <div className="text-3xl mb-3">🚀</div>
+                  <p className="text-[15px] sm:text-[16px] font-semibold text-ink-muted mb-1">No activity yet</p>
                   <p className="text-[13px] sm:text-[14px] text-ink-faint max-w-sm mx-auto leading-[1.5] px-3">
-                    Share this page with your community so they can submit proof.
+                    Be the first to submit a proof and earn your spot on the leaderboard.
                   </p>
+                  {!isConnected && (
+                    <button onClick={() => open()}
+                      className="mt-4 h-9 px-5 rounded-md text-[13px] font-semibold text-white transition-all"
+                      style={{ backgroundColor: '#F54E00', border: 'none', cursor: 'pointer', boxShadow: '0 1px 4px rgba(245,78,0,0.25)' }}>
+                      Connect to start
+                    </button>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-3">
                   {taskList.map(([id, task]) => {
                     const cfg = sc[task.status] ?? sc.pending
+                    const emoji = actionEmoji[task.action_type] || '📋'
+                    const isVerified = task.status === 'verified'
                     return (
-                      <article key={id} className="p-3 sm:p-4 border border-border rounded-sm bg-canvas group">
+                      <article key={id} className={`p-3 sm:p-4 border rounded-sm bg-canvas group transition-colors ${isVerified ? 'border-emerald-200 bg-emerald-50/30' : 'border-border'}`}>
                         <div className="flex flex-col sm:flex-row sm:items-start gap-2 sm:gap-3">
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
                               <span className={`text-[10px] sm:text-[11px] font-semibold px-2 py-0.5 rounded-sm border ${cfg.style}`}>
-                                {cfg.label}
+                                {isVerified ? '✓ Verified' : cfg.label}
                               </span>
                               <span className="text-[10px] sm:text-[11px] font-semibold text-ink-faint font-mono truncate max-w-[120px] sm:max-w-none">{id}</span>
                             </div>
                             <p className="text-[14px] sm:text-[15px] text-ink leading-[1.5]">
-                              <span className="font-bold text-ink-deep capitalize">{task.action_type}</span>
-                              <span className="text-ink-muted"> by </span>
-                              <span className="font-bold text-ink-deep">@{task.expected_handle}</span>
+                              {emoji} <span className="font-bold text-ink-deep">@{task.expected_handle}</span>
+                              <span className="text-ink-muted"> — {task.action_type}d a tweet</span>
                             </p>
-                            <p className="text-[11px] sm:text-[12px] text-ink-faint mt-0.5 font-mono">by {fmtAddr(task.submitter)}</p>
-                            <p className="text-[11px] sm:text-[12px] text-ink-faint/70 truncate font-mono mt-0.5">{task.tweet_url}</p>
+                            <p className="text-[11px] sm:text-[12px] text-ink-faint mt-0.5 font-mono">submitted by {fmtAddr(task.submitter)}</p>
                             {task.verdict_reason && (
-                              <p className="text-[12px] sm:text-[13px] text-ink-muted italic mt-2 leading-[1.5]">
+                              <p className={`text-[12px] sm:text-[13px] italic mt-2 leading-[1.5] ${isVerified ? 'text-emerald-700' : 'text-ink-muted'}`}>
                                 &ldquo;{task.verdict_reason}&rdquo;
                               </p>
                             )}
