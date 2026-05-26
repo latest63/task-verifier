@@ -44,7 +44,7 @@ export default function ConnectWalletInner() {
   return (
     <button
       onClick={() => open()}
-      className="h-8 px-4 rounded-sm text-[15px] font-semibold bg-brand-dark hover:opacity-70 text-white transition-all"
+      className="h-8 w-[100px] rounded-sm text-[14px] font-semibold bg-brand hover:bg-brand/90 text-white transition-all"
     >
       Connect
     </button>
