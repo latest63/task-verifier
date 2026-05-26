@@ -3,37 +3,29 @@
 import { useAccount, useDisconnect } from 'wagmi'
 import { useWeb3Modal, createWeb3Modal } from '@web3modal/wagmi/react'
 import { config } from '../lib/wagmi-config'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 
 const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_ID || ''
+
+createWeb3Modal({
+  wagmiConfig: config,
+  projectId,
+  enableAnalytics: false,
+  metadata: {
+    name: 'Task Verifier',
+    description: 'Verify social media actions with AI consensus on GenLayer',
+    url: typeof window !== 'undefined' ? window.location.origin : '',
+    icons: [''],
+  },
+})
 
 export default function ConnectWalletInner() {
   const { address, isConnected } = useAccount()
   const { disconnect } = useDisconnect()
   const { open } = useWeb3Modal()
   const [mounted, setMounted] = useState(false)
-  const initialized = useRef(false)
 
-  useEffect(() => {
-    if (initialized.current) return
-    initialized.current = true
-    try {
-      createWeb3Modal({
-        wagmiConfig: config,
-        projectId,
-        enableAnalytics: false,
-        metadata: {
-          name: 'Task Verifier',
-          description: 'Verify social media actions with AI consensus on GenLayer',
-          url: typeof window !== 'undefined' ? window.location.origin : '',
-          icons: [''],
-        },
-      })
-    } catch (e) {
-      console.error('Web3Modal init failed:', e)
-    }
-    setMounted(true)
-  }, [])
+  useEffect(() => setMounted(true), [])
 
   if (!mounted) return null
 
@@ -52,8 +44,7 @@ export default function ConnectWalletInner() {
   return (
     <button
       onClick={() => open()}
-      className="h-9 px-4 sm:px-10 rounded-sm text-[13px] sm:text-[14px] font-semibold text-white transition-all shrink-0"
-      style={{ backgroundColor: '#F54E00' }}
+      className="h-9 px-4 sm:px-10 rounded-sm text-[13px] sm:text-[14px] font-semibold bg-brand hover:bg-brand/90 text-white transition-all shrink-0"
     >
       Connect
     </button>
