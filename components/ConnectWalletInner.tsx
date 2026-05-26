@@ -33,7 +33,7 @@ export default function ConnectWalletInner() {
     return (
       <button
         onClick={() => disconnect()}
-        className="h-9 px-5 rounded-sm text-[14px] font-semibold bg-canvas-surface border border-border text-ink-muted hover:text-brand transition-colors"
+        className="h-9 px-9 rounded-sm text-[14px] font-semibold bg-canvas-surface border border-border text-ink-muted hover:text-brand transition-colors"
         title="Disconnect"
       >
         {address.slice(0, 6)}…{address.slice(-4)}
@@ -44,7 +44,7 @@ export default function ConnectWalletInner() {
   return (
     <button
       onClick={() => open()}
-      className="h-9 px-6 rounded-sm text-[14px] font-semibold bg-brand hover:bg-brand/90 text-white transition-all"
+      className="h-9 px-10 rounded-sm text-[14px] font-semibold bg-brand hover:bg-brand/90 text-white transition-all"
     >
       Connect
     </button>

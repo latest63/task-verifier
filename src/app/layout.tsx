@@ -12,6 +12,11 @@ const ibmPlex = IBM_Plex_Sans({
 export const metadata: Metadata = {
   title: 'Task Verifier — GenLayer',
   description: 'Verify social media actions with AI consensus on GenLayer',
+  icons: {
+    icon: [
+      { url: '/tv logo.png', type: 'image/png' },
+    ],
+  },
   openGraph: {
     title: 'Task Verifier',
     description: 'Verify social actions with AI consensus on GenLayer',
