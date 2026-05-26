@@ -33,8 +33,19 @@ export default function ConnectWalletInner() {
     return (
       <button
         onClick={() => disconnect()}
-        className="h-11 px-5 sm:px-10 rounded-sm text-[14px] sm:text-[15px] font-semibold transition-colors shrink-0"
-        style={{ backgroundColor: '#eeefe9', border: '1px solid #bfc1b7', color: '#65675e' }}
+        className="font-semibold shrink-0"
+        style={{
+          height: '44px',
+          padding: '0 28px',
+          fontSize: '14px',
+          borderRadius: '10px',
+          backgroundColor: '#f5f5f0',
+          border: '1px solid #d4d4cc',
+          color: '#555',
+          cursor: 'pointer',
+          transition: 'all 0.2s ease',
+          fontWeight: 600,
+        }}
         title="Disconnect"
       >
         {address.slice(0, 6)}…{address.slice(-4)}
@@ -45,8 +56,20 @@ export default function ConnectWalletInner() {
   return (
     <button
       onClick={() => open()}
-      className="h-11 px-6 sm:px-14 rounded-sm text-[14px] sm:text-[15px] font-semibold transition-all shrink-0"
-      style={{ backgroundColor: '#F54E00', color: '#ffffff', border: 'none' }}
+      className="font-semibold shrink-0"
+      style={{
+        height: '44px',
+        padding: '0 32px',
+        fontSize: '14px',
+        borderRadius: '10px',
+        backgroundColor: '#F54E00',
+        color: '#ffffff',
+        border: 'none',
+        cursor: 'pointer',
+        boxShadow: '0 2px 8px rgba(245, 78, 0, 0.3)',
+        transition: 'all 0.2s ease',
+        fontWeight: 600,
+      }}
     >
       Connect
     </button>

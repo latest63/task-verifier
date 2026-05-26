@@ -8,8 +8,14 @@ const ConnectWalletInner = dynamic(
     ssr: false,
     loading: () => (
       <span
-        className="h-11 w-24 sm:w-32 rounded-sm animate-pulse shrink-0"
-        style={{ backgroundColor: 'rgba(245, 78, 0, 0.3)' }}
+        className="shrink-0 animate-pulse"
+        style={{
+          display: 'inline-block',
+          height: '44px',
+          width: '110px',
+          borderRadius: '10px',
+          backgroundColor: 'rgba(245, 78, 0, 0.2)',
+        }}
       />
     ),
   }
