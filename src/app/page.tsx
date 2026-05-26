@@ -119,7 +119,7 @@ export default function Home() {
       <header className="sticky top-0 z-50 bg-canvas/90 backdrop-blur-sm border-b border-border">
         <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src="/tv 2.png" alt="Task Verifier" className="w-7 h-7 rounded-sm object-contain" />
+            <img src="/tv 2.png" alt="Task Verifier" className="w-10 h-10 rounded-sm object-contain" />
             <span className="text-[15px] font-semibold text-ink-deep tracking-tight">Task Verifier</span>
           </div>
 
