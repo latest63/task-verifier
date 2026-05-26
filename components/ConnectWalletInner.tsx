@@ -35,10 +35,10 @@ export default function ConnectWalletInner() {
         onClick={() => disconnect()}
         className="font-semibold shrink-0"
         style={{
-          height: '36px',
-          padding: '0 18px',
-          fontSize: '13px',
-          borderRadius: '8px',
+          height: '32px',
+          padding: '0 14px',
+          fontSize: '12px',
+          borderRadius: '6px',
           backgroundColor: '#f5f5f0',
           border: '1px solid #d4d4cc',
           color: '#555',
@@ -58,15 +58,15 @@ export default function ConnectWalletInner() {
       onClick={() => open()}
       className="font-semibold shrink-0"
       style={{
-        height: '36px',
-        padding: '0 22px',
-        fontSize: '13px',
-        borderRadius: '8px',
+        height: '32px',
+        padding: '0 16px',
+        fontSize: '12px',
+        borderRadius: '6px',
         backgroundColor: '#F54E00',
         color: '#ffffff',
         border: 'none',
         cursor: 'pointer',
-        boxShadow: '0 1px 6px rgba(245, 78, 0, 0.3)',
+        boxShadow: '0 1px 4px rgba(245, 78, 0, 0.25)',
         transition: 'all 0.2s ease',
         fontWeight: 600,
       }}
