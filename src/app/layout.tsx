@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { IBM_Plex_Sans } from 'next/font/google'
 import { Providers } from './providers'
+import Web3ModalInit from '../../components/Web3ModalInit'
 import './globals.css'
 
 const ibmPlex = IBM_Plex_Sans({
@@ -27,6 +28,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={ibmPlex.variable}>
       <body>
+        <Web3ModalInit />
         <Providers>{children}</Providers>
       </body>
     </html>
