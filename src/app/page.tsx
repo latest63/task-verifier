@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useAccount, useWalletClient } from 'wagmi'
+import { useWeb3Modal } from '@web3modal/wagmi/react'
 import { createPublicClient, http, defineChain } from 'viem'
 import ConnectWallet from '../../components/ConnectWallet'
 
@@ -41,6 +42,7 @@ export default function Home() {
   const contractAddr = process.env.NEXT_PUBLIC_VERIFIER_CONTRACT || ''
   const { address, isConnected } = useAccount()
   const { data: walletClient } = useWalletClient()
+  const { open } = useWeb3Modal()
 
   const [view, setView] = useState<View>('dashboard')
 
@@ -256,10 +258,13 @@ export default function Home() {
             )}
 
             {!isConnected ? (
-              <div className="py-12 sm:py-16 text-center border border-border rounded-sm bg-canvas">
+              <button
+                onClick={() => open()}
+                className="w-full py-12 sm:py-16 text-center border border-border rounded-sm bg-canvas hover:bg-canvas-surface transition-colors cursor-pointer"
+              >
                 <p className="text-[15px] sm:text-[16px] font-semibold text-ink-muted mb-1">Connect your wallet</p>
                 <p className="text-[13px] sm:text-[14px] text-ink-faint px-3">Connect to submit proof of completed tasks.</p>
-              </div>
+              </button>
             ) : (
               <form onSubmit={submitProof} className="p-3 sm:p-5 border border-border rounded-sm bg-canvas">
                 <div className="grid gap-4">
