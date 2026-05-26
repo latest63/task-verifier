@@ -1,7 +1,6 @@
 import { createConfig, http } from 'wagmi'
 import { injected, walletConnect } from 'wagmi/connectors'
 
-// ── GenLayer Bradbury chain ──────────────
 const bradbury = {
   id: 4221,
   name: 'GenLayer Bradbury',
@@ -16,6 +15,9 @@ const bradbury = {
 } as const
 
 const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_ID || ''
+if (!projectId) {
+  console.warn('NEXT_PUBLIC_WALLETCONNECT_ID not set — WalletConnect QR connections unavailable. Only injected wallets (MetaMask) will work.')
+}
 
 export const config = createConfig({
   chains: [bradbury],
@@ -23,7 +25,5 @@ export const config = createConfig({
     injected(),
     walletConnect({ projectId, showQrModal: false }),
   ],
-  transports: {
-    [bradbury.id]: http(),
-  },
+  transports: { [bradbury.id]: http() },
 })

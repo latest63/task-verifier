@@ -5,11 +5,11 @@ import { useWeb3Modal, createWeb3Modal } from '@web3modal/wagmi/react'
 import { config } from '../lib/wagmi-config'
 import { useState, useEffect } from 'react'
 
-// Idempotent init — runs once on first client import
 const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_ID || ''
+
 createWeb3Modal({
   wagmiConfig: config,
-  projectId: projectId || 'TASK_VERIFIER_DEV',
+  projectId,
   enableAnalytics: false,
   metadata: {
     name: 'Task Verifier',
@@ -33,7 +33,7 @@ export default function ConnectWalletInner() {
     return (
       <button
         onClick={() => disconnect()}
-        className="h-9 px-4 rounded-xl text-[13px] font-semibold bg-success-soft text-emerald-700 border border-success-border shadow-sm hover:bg-success-border/30 transition-all duration-200"
+        className="h-8 px-4 rounded-sm text-[13px] font-semibold bg-canvas-surface border border-border text-ink-muted hover:text-brand transition-colors"
         title="Disconnect"
       >
         {address.slice(0, 6)}…{address.slice(-4)}
@@ -44,7 +44,7 @@ export default function ConnectWalletInner() {
   return (
     <button
       onClick={() => open()}
-      className="h-9 px-4 rounded-xl text-[13px] font-semibold bg-brand-gradient text-white shadow-glow hover:shadow-xl hover:scale-[1.02] transition-all duration-200"
+      className="h-8 px-4 rounded-sm text-[13px] font-semibold bg-brand-dark hover:opacity-70 text-white transition-all"
     >
       Connect
     </button>
