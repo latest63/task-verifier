@@ -30,7 +30,7 @@ type TaskData = { submitter: string; tweet_url: string; screenshot_url: string; 
 type TaskMap = Record<string, TaskData>
 type View = 'task' | 'dashboard' | 'submit'
 
-const ACTIONS = ['like', 'retweet', 'reply', 'post'] as const
+const ACTIONS = ['like', 'retweet'] as const
 const sc: Record<string, { label: string; style: string }> = {
   pending:  { label: 'Pending',  style: 'border-amber-300/60 bg-amber-50 text-amber-800' },
   verified: { label: 'Verified', style: 'border-emerald-300/60 bg-emerald-50 text-emerald-800' },
@@ -39,6 +39,7 @@ const sc: Record<string, { label: string; style: string }> = {
 const fmtAddr = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`
 
 const actionEmoji: Record<string, string> = { like: '❤️', retweet: '🔄', reply: '💬', post: '📝' }
+const GENLAYER_PINNED_POST = 'https://x.com/GenLayer/status/2033575658165867008'
 
 export default function Home() {
   const contractAddr = process.env.NEXT_PUBLIC_VERIFIER_CONTRACT || ''
@@ -167,20 +168,44 @@ export default function Home() {
         {view === 'task' && (
           <>
             <div className="mb-6 sm:mb-8">
-              <h1 className="text-[24px] sm:text-[30px] font-extrabold text-ink-deep leading-[1.2] tracking-[-0.75px]">How It Works</h1>
+              <h1 className="text-[24px] sm:text-[30px] font-extrabold text-ink-deep leading-[1.2] tracking-[-0.75px]">GenLayer Community Tasks</h1>
               <p className="mt-2 text-[14px] sm:text-[16px] text-ink leading-[1.5] max-w-xl">
-                Complete social media tasks, submit proof, and get verified by GenLayer AI consensus.
+                Support the <a href="https://x.com/GenLayer" target="_blank" rel="noopener" className="font-bold text-brand hover:underline">@GenLayer</a> community by engaging with our pinned post. Complete the actions below, submit proof, and get verified by GenLayer AI consensus.
               </p>
             </div>
 
+            {/* Pinned post card */}
+            <div className="mb-8 p-4 sm:p-5 border-2 border-brand/20 rounded-sm bg-orange-50/50">
+              <div className="flex items-start gap-3">
+                <div className="shrink-0 w-10 h-10 rounded-full bg-ink-deep flex items-center justify-center text-white text-[10px] font-bold leading-tight text-center">
+                  G<br/>L
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[14px] font-bold text-ink-deep">GenLayer</span>
+                    <span className="text-[12px] text-ink-faint">@GenLayer · Pinned</span>
+                  </div>
+                  <p className="text-[13px] sm:text-[14px] text-ink leading-[1.6] mb-2">
+                    The future of AI-powered consensus is here. Like, Retweet, and follow to stay updated.
+                  </p>
+                  <a href={GENLAYER_PINNED_POST} target="_blank" rel="noopener"
+                    className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-brand hover:underline">
+                    🔗 View post on X
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            <h2 className="text-[16px] sm:text-[18px] font-bold text-ink-deep mb-4">Steps to earn</h2>
+
             <div className="space-y-6">
               {[
-                { num: '1', icon: '📋', title: 'Pick a task', desc: 'Choose from available actions — Like, Retweet, Reply, or Post on X (Twitter). Each task has clear instructions on what to do.' },
-                { num: '2', icon: '📸', title: 'Capture proof', desc: 'After completing the action, take a screenshot showing the tweet and your interaction (like count, retweet icon, reply thread, or your post).' },
-                { num: '3', icon: '🔗', title: 'Submit with link', desc: 'Paste the tweet URL and your X handle, upload the screenshot, and submit. The image is hosted automatically — no extra steps needed.' },
-                { num: '4', icon: '🤖', title: 'AI verification', desc: 'GenLayer validators cross-check your screenshot against the live tweet. Multiple AI models independently verify the proof and reach consensus.' },
-                { num: '5', icon: '✅', title: 'Get verified', desc: 'If the proof is genuine, your task is marked Verified and added to your tally. Faked screenshots are rejected with a reason.' },
-                { num: '6', icon: '🏆', title: 'Climb the leaderboard', desc: 'Each verified task earns you a spot on the leaderboard. The more you verify, the higher you rank in the community.' },
+                { num: '1', icon: '❤️', title: 'Like the pinned post', desc: 'Go to the GenLayer pinned post on X and click the Like button. This shows community support.' },
+                { num: '2', icon: '🔄', title: 'Retweet to your followers', desc: 'Retweet the pinned post to share it with your audience. The more reach, the stronger the community.' },
+                { num: '3', icon: '📸', title: 'Capture your proof', desc: 'Take a screenshot showing both the like and retweet on the pinned post. Make sure your handle and the interactions are clearly visible.' },
+                { num: '4', icon: '🔗', title: 'Submit with your X handle', desc: 'Paste the pinned post URL, your X handle, upload the screenshot, and submit. The image is hosted automatically.' },
+                { num: '5', icon: '🤖', title: 'AI verification', desc: 'GenLayer validators cross-check your screenshot against the live post. Multiple AI models independently verify the proof.' },
+                { num: '6', icon: '🏆', title: 'Get verified & climb', desc: 'If genuine, your task is marked Verified. Each verified task earns you a spot on the community leaderboard.' },
               ].map(step => (
                 <div key={step.num} className="flex gap-4 sm:gap-5 p-4 sm:p-5 border border-border rounded-sm bg-canvas hover:bg-canvas-surface transition-colors">
                   <div className="shrink-0 w-9 h-9 flex items-center justify-center rounded-sm font-bold text-[15px] text-white"
@@ -207,7 +232,7 @@ export default function Home() {
             <div className="mb-6 sm:mb-8">
               <h1 className="text-[24px] sm:text-[30px] font-extrabold text-ink-deep leading-[1.2] tracking-[-0.75px]">Community Activity</h1>
               <p className="mt-2 text-[14px] sm:text-[16px] text-ink leading-[1.5] max-w-xl">
-                AI-verified proof of work. Earn recognition by completing tasks and submitting proof.
+                AI-verified community contributions. Complete tasks, submit proof, and earn your spot on the leaderboard.
               </p>
             </div>
 
@@ -224,7 +249,7 @@ export default function Home() {
               <div className="col-span-2 p-2.5 sm:p-4 border border-brand/20 rounded-sm bg-orange-50/40 flex flex-col sm:flex-row items-center justify-between gap-2">
                 <div>
                   <div className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-ink-faint mb-1">Ready to earn?</div>
-                  <div className="text-[13px] sm:text-[14px] font-semibold text-ink leading-[1.4]">Complete a task and submit proof</div>
+                  <div className="text-[13px] sm:text-[14px] font-semibold text-ink leading-[1.4]">Like & Retweet the GenLayer pinned post</div>
                 </div>
                 <button onClick={() => setView('submit')}
                   className="shrink-0 h-9 px-4 sm:px-6 rounded-md text-[12px] sm:text-[13px] font-semibold text-white transition-all"
@@ -278,9 +303,9 @@ export default function Home() {
               {total === 0 ? (
                 <div className="py-12 sm:py-16 text-center border border-border rounded-sm bg-canvas">
                   <div className="text-3xl mb-3">🚀</div>
-                  <p className="text-[15px] sm:text-[16px] font-semibold text-ink-muted mb-1">No activity yet</p>
+                  <p className="text-[15px] sm:text-[16px] font-semibold text-ink-muted mb-1">No community activity yet</p>
                   <p className="text-[13px] sm:text-[14px] text-ink-faint max-w-sm mx-auto leading-[1.5] px-3">
-                    Be the first to submit a proof and earn your spot on the leaderboard.
+                    Be the first to Like & Retweet the GenLayer pinned post and submit your proof.
                   </p>
                   {!isConnected && (
                     <button onClick={() => open()}
@@ -339,7 +364,7 @@ export default function Home() {
             <div className="mb-6 sm:mb-10">
               <h1 className="text-[24px] sm:text-[30px] font-extrabold text-ink-deep leading-[1.2] tracking-[-0.75px]">Submit proof</h1>
               <p className="mt-2 text-[14px] sm:text-[16px] text-ink leading-[1.5] max-w-xl">
-                Complete the task, upload your screenshot, and submit. GenLayer AI will verify your proof on-chain.
+                Liked or retweeted the <a href={GENLAYER_PINNED_POST} target="_blank" rel="noopener" className="font-bold text-brand hover:underline">GenLayer pinned post</a>? Upload your screenshot and submit. GenLayer AI will verify your proof on-chain.
               </p>
             </div>
 
@@ -370,7 +395,7 @@ export default function Home() {
                       ) : (
                         <div className="text-center">
                           <div className="text-2xl mb-1">📸</div>
-                          <span className="text-[14px] font-semibold text-ink-muted">Drop screenshot or click</span>
+                          <span className="text-[14px] font-semibold text-ink-muted">Screenshot showing your Like & Retweet</span>
                           <span className="block text-[12px] text-ink-faint mt-0.5">PNG, JPEG, WebP</span>
                         </div>
                       )}
@@ -386,7 +411,7 @@ export default function Home() {
                   <div>
                     <label className="block text-[13px] font-bold uppercase tracking-wide text-ink-muted mb-2">Tweet URL</label>
                     <input value={tweetUrl} onChange={e => setTweetUrl(e.target.value)}
-                      placeholder="https://x.com/username/status/…"
+                      placeholder="https://x.com/GenLayer/status/2033575658165867008"
                       className="w-full bg-canvas-surface border border-border-light rounded-sm px-3 py-2 text-[14px] text-ink font-mono placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-focus/50" />
                   </div>
 
