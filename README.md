@@ -15,18 +15,23 @@ Verify social media actions with AI consensus on [GenLayer](https://genlayer.com
 
 ### 1. Deploy the contract
 
-Deploy the verification contract on GenLayer Bradbury testnet (chain ID: 4221).
+The verification contract is at [`contract/task_verifier.py`](./contract/task_verifier.py).
 
-**Contract ABI:**
-```solidity
-function submit_task(string tweet_url, string screenshot_url, string expected_handle, string action_type)
-function verify(string task_id)
-function get_task(string task_id) view returns (tuple)
-function get_all_tasks() view returns (mapping)
-function get_task_count() view returns (uint)
+```bash
+# Install GenLayer CLI
+npm install -g genlayer
+
+# Switch to Bradbury testnet
+genlayer network testnet-bradbury
+
+# Deploy (you'll be prompted to confirm with your wallet)
+genlayer contract deploy contract/task_verifier.py
 ```
 
-Use [Remix](https://remix.ethereum.org), [Foundry](https://book.getfoundry.sh), or any EVM tool to deploy.
+**Requirements:**
+- Python 3.12+
+- A wallet with testnet GEN from the [Bradbury faucet](https://testnet-faucet.genlayer.foundation)
+- GenLayer RPC: `https://rpc-bradbury.genlayer.com` (chain ID: 4221)
 
 ### 2. Clone and configure
 
