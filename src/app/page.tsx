@@ -177,9 +177,7 @@ export default function Home() {
             {/* Pinned post card */}
             <div className="mb-8 p-4 sm:p-5 border-2 border-brand/20 rounded-sm bg-orange-50/50">
               <div className="flex items-start gap-3">
-                <div className="shrink-0 w-10 h-10 rounded-full bg-ink-deep flex items-center justify-center text-white text-[10px] font-bold leading-tight text-center">
-                  G<br/>L
-                </div>
+                <img src="/genlayer-logo.jpeg" alt="GenLayer" className="shrink-0 w-10 h-10 rounded-full object-cover" />
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-[14px] font-bold text-ink-deep">GenLayer</span>
