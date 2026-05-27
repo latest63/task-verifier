@@ -4,6 +4,8 @@ import typing
 import json
 from dataclasses import dataclass
 
+PINNED_POST = "https://x.com/GenLayer/status/2033575658165867008"
+
 
 @allow_storage
 @dataclass
@@ -12,7 +14,7 @@ class Task:
     tweet_url: str
     screenshot_url: str       # imgur/0x0.st link
     expected_handle: str
-    action_type: str          # "like", "retweet", "reply", "post"
+    action_type: str          # "like", "retweet"
     status: str               # "pending", "verified", "rejected"
     verdict_reason: str
     timestamp: str
@@ -21,6 +23,11 @@ class Task:
 class TaskVerifier(gl.Contract):
     tasks: TreeMap[str, Task]
     task_count: u256
+
+    # ── Anti-abuse storage ──────────────────────────────────────
+    used_screenshots: TreeMap[str, bool]   # screenshot_url → claimed
+    verified_handles: TreeMap[str, Address]  # X handle → wallet that verified it
+    used_urls: TreeMap[str, bool]          # tweet_url → claimed (for retweet/reply)
 
     def __init__(self):
         self.task_count = u256(0)
@@ -35,18 +42,42 @@ class TaskVerifier(gl.Contract):
         expected_handle: str,
         action_type: str,
     ) -> str:
+        # ── Validation ──────────────────────────────────────────
+
         if not tweet_url.startswith("https://x.com/") and not tweet_url.startswith(
             "https://twitter.com/"
         ):
             raise gl.vm.UserError("tweet_url must be from x.com or twitter.com")
 
-        if action_type not in ("like", "retweet", "reply", "post"):
-            raise gl.vm.UserError("action_type must be: like, retweet, reply, post")
+        if action_type not in ("like", "retweet"):
+            raise gl.vm.UserError("action_type must be: like or retweet")
+
+        if action_type == "like" and tweet_url.rstrip("/") != PINNED_POST.rstrip("/"):
+            raise gl.vm.UserError("like action must target the GenLayer pinned post")
+
+        if action_type == "retweet" and tweet_url == PINNED_POST:
+            raise gl.vm.UserError("retweet must use your own retweet URL, not the pinned post")
 
         import re
         handle_re = r'^[A-Za-z0-9_]{1,15}$'
         if not re.match(handle_re, expected_handle):
             raise gl.vm.UserError("invalid X handle format")
+
+        # ── Anti-abuse checks ────────────────────────────────────
+
+        if self.used_screenshots.get(screenshot_url, False):
+            raise gl.vm.UserError("this screenshot has already been used")
+
+        if self.used_urls.get(tweet_url, False):
+            raise gl.vm.UserError("this tweet URL has already been used")
+
+        existing = self.verified_handles.get(expected_handle)
+        if existing is not None and existing != gl.message.sender_address:
+            raise gl.vm.UserError(
+                f"handle @{expected_handle} is already verified to another wallet"
+            )
+
+        # ── Create task ─────────────────────────────────────────
 
         task_id = f"task_{int(self.task_count)}"
         now = gl.message_raw["datetime"]
@@ -62,6 +93,11 @@ class TaskVerifier(gl.Contract):
             timestamp=now,
         )
         self.task_count = u256(int(self.task_count) + 1)
+
+        # Reserve screenshot + URL at submit time
+        self.used_screenshots[screenshot_url] = True
+        self.used_urls[tweet_url] = True
+
         return task_id
 
     # ── Run verification (multi-LLM consensus) ─────────────────
@@ -83,7 +119,7 @@ class TaskVerifier(gl.Contract):
                 wait_after_loaded="5s",
             )
 
-            # Step 2: Fetch screenshot image from imgur/0x0.st
+            # Step 2: Fetch screenshot image from hosted URL
             img_resp = gl.nondet.web.get(task.screenshot_url)
             img_bytes = img_resp.body
 
@@ -91,18 +127,20 @@ class TaskVerifier(gl.Contract):
             prompt = f"""You are a task verification AI. You must determine if a screenshot is GENUINE or FAKED.
 
 Expected X handle: @{task.expected_handle}
-Expected action: {task.action_type} (like, retweet, reply, or post)
+Expected action: {task.action_type} (like or retweet)
 
 === TWEET PAGE CONTENT (fetched live from URL) ===
 {page_text}
 
 Analyze the screenshot image I have attached alongside this text:
 
-1. Does the screenshot show @{task.expected_handle} having {task.action_type}ed this specific tweet?
-2. Does the tweet text/content in the screenshot match the real tweet from the URL above?
-3. Are the engagement numbers (likes, retweets, replies) consistent between the screenshot and the live page?
-4. Are there any visual signs of manipulation (misaligned text, inconsistent fonts, fake UI elements)?
-5. Is the UI style consistent with the real X/Twitter interface?
+1. Does the screenshot show X handle @{task.expected_handle} specifically? The handle must match exactly.
+2. Does the screenshot show @{task.expected_handle} having {task.action_type}ed this specific tweet?
+3. Does the tweet text/content in the screenshot match the real tweet from the URL above?
+4. Are the engagement numbers (likes, retweets, replies) consistent between the screenshot and the live page?
+5. Are there any visual signs of manipulation (misaligned text, inconsistent fonts, fake UI elements)?
+
+CRITICAL: If the screenshot shows a DIFFERENT handle or does not clearly show @{task.expected_handle}'s interaction, the verdict must be "rejected".
 
 Respond STRICTLY in this JSON format, no other text:
 {{"verdict": "verified" or "rejected", "reason": "short explanation", "confidence": "high" or "medium" or "low"}}"""
@@ -129,6 +167,12 @@ Respond STRICTLY in this JSON format, no other text:
         task.status = verdict_json["verdict"]
         task.verdict_reason = verdict_json["reason"]
         self.tasks[task_id] = task
+
+        # ── Lock rewards on successful verification ──────────────
+        if verdict_json["verdict"] == "verified":
+            # Map handle to the submitter's wallet so no one else can claim it
+            self.verified_handles[task.expected_handle] = task.submitter
+            # screenshot + tweet_url are already locked at submit time
 
         return verdict_json
 
@@ -169,3 +213,16 @@ Respond STRICTLY in this JSON format, no other text:
     @gl.public.view
     def get_task_count(self) -> int:
         return int(self.task_count)
+
+    @gl.public.view
+    def get_verified_handle(self, handle: str) -> str:
+        """Check if an X handle is verified and which wallet owns it."""
+        addr = self.verified_handles.get(handle)
+        if addr is None:
+            return "not_verified"
+        return addr.as_hex
+
+    @gl.public.view
+    def is_screenshot_used(self, url: str) -> bool:
+        """Check if a screenshot URL has already been submitted."""
+        return self.used_screenshots.get(url, False)

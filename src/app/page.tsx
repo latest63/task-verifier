@@ -24,6 +24,8 @@ const taskAbi = [
   { type: 'function', name: 'get_task', inputs: [{ type: 'string', name: 'task_id' }], stateMutability: 'view' },
   { type: 'function', name: 'get_all_tasks', inputs: [], stateMutability: 'view' },
   { type: 'function', name: 'get_task_count', inputs: [], stateMutability: 'view' },
+  { type: 'function', name: 'get_verified_handle', inputs: [{ type: 'string', name: 'handle' }], outputs: [{ type: 'string' }], stateMutability: 'view' },
+  { type: 'function', name: 'is_screenshot_used', inputs: [{ type: 'string', name: 'url' }], outputs: [{ type: 'bool' }], stateMutability: 'view' },
 ] as const
 
 type TaskData = { submitter: string; tweet_url: string; screenshot_url: string; expected_handle: string; action_type: string; status: string; verdict_reason: string; timestamp: string }
@@ -103,9 +105,12 @@ export default function Home() {
       const up = await fetch('/api/upload', { method: 'POST', body: fd })
       const { url } = await up.json(); setUploading(false)
 
+      // Use pinned post for like, manual URL for retweet
+      const finalUrl = action === 'like' ? GENLAYER_PINNED_POST : tweetUrl
+
       const hash = await walletClient.writeContract({
         account: address, address: contractAddr as `0x${string}`, abi: taskAbi,
-        functionName: 'submit_task', args: [tweetUrl, url, handle, action], chain: bradbury,
+        functionName: 'submit_task', args: [finalUrl, url, handle, action], chain: bradbury,
       } as any)
       await publicClient.waitForTransactionReceipt({ hash });
       setScreenshot(null); setPreview(null); setTweetUrl(''); setHandle(''); setAction('like')
@@ -196,14 +201,28 @@ export default function Home() {
 
             <h2 className="text-[16px] sm:text-[18px] font-bold text-ink-deep mb-4">Steps to earn</h2>
 
+            {/* Wallet proof note */}
+            <div className="mb-6 p-3 sm:p-4 bg-canvas-surface border border-border rounded-sm">
+              <div className="flex items-start gap-2.5">
+                <span className="text-lg shrink-0">🛡️</span>
+                <div>
+                  <p className="text-[13px] sm:text-[14px] font-semibold text-ink-deep">Prove you own your X account</p>
+                  <p className="text-[12px] sm:text-[13px] text-ink leading-[1.5] mt-0.5">
+                    Before submitting, reply to the pinned post with your wallet address from the Submit tab. The AI checks the reply matches your handle — only the real account owner can reply from that handle.
+                  </p>
+                </div>
+              </div>
+            </div>
+
             <div className="space-y-6">
               {[
                 { num: '1', icon: '❤️', title: 'Like the pinned post', desc: 'Go to the GenLayer pinned post on X and click the Like button. This shows community support.' },
                 { num: '2', icon: '🔄', title: 'Retweet to your followers', desc: 'Retweet the pinned post to share it with your audience. The more reach, the stronger the community.' },
-                { num: '3', icon: '📸', title: 'Capture your proof', desc: 'Take a screenshot showing both the like and retweet on the pinned post. Make sure your handle and the interactions are clearly visible.' },
-                { num: '4', icon: '🔗', title: 'Submit with your X handle', desc: 'Paste the pinned post URL, your X handle, upload the screenshot, and submit. The image is hosted automatically.' },
-                { num: '5', icon: '🤖', title: 'AI verification', desc: 'GenLayer validators cross-check your screenshot against the live post. Multiple AI models independently verify the proof.' },
-                { num: '6', icon: '🏆', title: 'Get verified & climb', desc: 'If genuine, your task is marked Verified. Each verified task earns you a spot on the community leaderboard.' },
+                { num: '3', icon: '🛡️', title: 'Reply with your wallet address', desc: 'Reply to the pinned post with your wallet address (copy it from the Submit tab). This proves you own the X account — only the real account holder can post from that handle.' },
+                { num: '4', icon: '📸', title: 'Capture your proof', desc: 'Take a screenshot showing your Like or Retweet on the pinned post. Make sure your handle and the interaction are clearly visible.' },
+                { num: '5', icon: '🔗', title: 'Submit with your X handle', desc: 'Enter your X handle, upload the screenshot, and submit. For Like the URL is auto-set. For Retweet, paste your unique retweet URL.' },
+                { num: '6', icon: '🤖', title: 'AI verification', desc: 'GenLayer validators cross-check your screenshot against the live post AND verify the reply proves you own the handle. Multiple AI models independently confirm.' },
+                { num: '7', icon: '🏆', title: 'Get verified & climb', desc: 'If genuine, your task is marked Verified. Each verified task earns you a spot on the community leaderboard.' },
               ].map(step => (
                 <div key={step.num} className="flex gap-4 sm:gap-5 p-4 sm:p-5 border border-border rounded-sm bg-canvas hover:bg-canvas-surface transition-colors">
                   <div className="shrink-0 w-9 h-9 flex items-center justify-center rounded-sm font-bold text-[15px] text-white"
@@ -407,10 +426,19 @@ export default function Home() {
                   </div>
 
                   <div>
-                    <label className="block text-[13px] font-bold uppercase tracking-wide text-ink-muted mb-2">Tweet URL</label>
-                    <input value={tweetUrl} onChange={e => setTweetUrl(e.target.value)}
-                      placeholder="https://x.com/GenLayer/status/2033575658165867008"
-                      className="w-full bg-canvas-surface border border-border-light rounded-sm px-3 py-2 text-[14px] text-ink font-mono placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-focus/50" />
+                    <label className="block text-[13px] font-bold uppercase tracking-wide text-ink-muted mb-2">
+                      Tweet URL
+                      {action === 'like' && <span className="text-brand ml-1 text-[11px]">(auto-set for Like)</span>}
+                      {action === 'retweet' && <span className="text-ink-faint ml-1 text-[11px]">(your retweet URL)</span>}
+                    </label>
+                    {action === 'like' ? (
+                      <input value={GENLAYER_PINNED_POST} readOnly
+                        className="w-full bg-canvas-surface border border-border-light rounded-sm px-3 py-2 text-[14px] text-ink font-mono opacity-60 cursor-not-allowed" />
+                    ) : (
+                      <input value={tweetUrl} onChange={e => setTweetUrl(e.target.value)}
+                        placeholder="https://x.com/yourhandle/status/…"
+                        className="w-full bg-canvas-surface border border-border-light rounded-sm px-3 py-2 text-[14px] text-ink font-mono placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-focus/50" />
+                    )}
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -431,9 +459,23 @@ export default function Home() {
                       </select>
                     </div>
                   </div>
+
+                  {isConnected && address && (
+                    <div className="p-3 bg-orange-50/50 border border-brand/20 rounded-sm">
+                      <div className="text-[11px] font-bold uppercase tracking-widest text-ink-faint mb-1">Your wallet address</div>
+                      <div className="flex items-center gap-2">
+                        <code className="text-[12px] font-mono text-ink-deep bg-white px-2 py-1 rounded-sm border border-border flex-1 truncate">{address}</code>
+                        <button type="button" onClick={() => navigator.clipboard.writeText(address)}
+                          className="shrink-0 text-[11px] font-semibold text-brand hover:underline">Copy</button>
+                      </div>
+                      <p className="text-[11px] text-ink-faint mt-1.5 leading-[1.4]">
+                        Reply to the pinned post with this address to prove you own your X account. The AI will verify the reply.
+                      </p>
+                    </div>
+                  )}
                 </div>
 
-                <button type="submit" disabled={submitting || !screenshot || !tweetUrl || !handle}
+                <button type="submit" disabled={submitting || !screenshot || !handle || (action === 'retweet' && !tweetUrl)}
                   className="mt-5 w-full py-2.5 bg-brand-dark hover:opacity-70 disabled:opacity-30 disabled:cursor-not-allowed text-white text-[15px] font-bold rounded-sm transition-all">
                   {uploading ? 'Uploading…' : submitting ? 'Confirming on-chain…' : 'Submit proof'}
                 </button>
