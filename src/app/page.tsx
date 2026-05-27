@@ -28,7 +28,7 @@ const taskAbi = [
 
 type TaskData = { submitter: string; tweet_url: string; screenshot_url: string; expected_handle: string; action_type: string; status: string; verdict_reason: string; timestamp: string }
 type TaskMap = Record<string, TaskData>
-type View = 'dashboard' | 'submit'
+type View = 'task' | 'dashboard' | 'submit'
 
 const ACTIONS = ['like', 'retweet', 'reply', 'post'] as const
 const sc: Record<string, { label: string; style: string }> = {
@@ -46,7 +46,7 @@ export default function Home() {
   const { data: walletClient } = useWalletClient()
   const { open } = useWeb3Modal()
 
-  const [view, setView] = useState<View>('dashboard')
+  const [view, setView] = useState<View>('task')
 
   // Dashboard
   const [tasks, setTasks] = useState<TaskMap>({})
@@ -138,31 +138,66 @@ export default function Home() {
             <span className="hidden sm:inline text-[15px] font-semibold text-ink-deep tracking-tight">Task Verifier</span>
           </div>
 
-          {contractAddr && (
-            <div className="flex bg-canvas-surface rounded-sm border border-border p-0.5 shrink-0">
-              {(['dashboard', 'submit'] as const).map(v => (
+          <div className="flex bg-canvas-surface rounded-sm border border-border p-0.5 shrink-0">
+              {(['task', 'dashboard', 'submit'] as const).map(v => (
                 <button key={v} onClick={() => setView(v)}
                   className={`px-2.5 sm:px-4 py-1 text-[12px] sm:text-[14px] font-semibold rounded-sm transition-colors ${
                     view === v ? 'bg-brand-dark text-white' : 'text-ink-muted hover:text-brand'
                   }`}>
-                  {v === 'dashboard' ? 'Activity' : 'Submit'}
+                  {v === 'task' ? 'Task' : v === 'dashboard' ? 'Activity' : 'Submit'}
                 </button>
               ))}
             </div>
-          )}
 
           <ConnectWallet />
         </div>
       </header>
 
       <div className="max-w-5xl mx-auto px-3 sm:px-6 py-8 sm:py-12 md:py-16">
-        {!contractAddr && (
+        {!contractAddr && view !== 'task' && (
           <div className="py-20 text-center border border-border rounded-sm bg-canvas">
             <p className="text-[16px] font-semibold text-ink-muted mb-1.5">Contract not configured</p>
             <p className="text-[14px] text-ink-faint max-w-md mx-auto leading-[1.5]">
               Set <code className="text-[13px] bg-canvas-surface px-1.5 py-0.5 rounded-sm font-mono text-ink">NEXT_PUBLIC_VERIFIER_CONTRACT</code> in your environment variables, then redeploy.
             </p>
           </div>
+        )}
+
+        {/* ═══ TASK INFO ═══════════════════════════════════ */}
+        {view === 'task' && (
+          <>
+            <div className="mb-6 sm:mb-8">
+              <h1 className="text-[24px] sm:text-[30px] font-extrabold text-ink-deep leading-[1.2] tracking-[-0.75px]">How It Works</h1>
+              <p className="mt-2 text-[14px] sm:text-[16px] text-ink leading-[1.5] max-w-xl">
+                Complete social media tasks, submit proof, and get verified by GenLayer AI consensus.
+              </p>
+            </div>
+
+            <div className="space-y-6">
+              {[
+                { num: '1', icon: '📋', title: 'Pick a task', desc: 'Choose from available actions — Like, Retweet, Reply, or Post on X (Twitter). Each task has clear instructions on what to do.' },
+                { num: '2', icon: '📸', title: 'Capture proof', desc: 'After completing the action, take a screenshot showing the tweet and your interaction (like count, retweet icon, reply thread, or your post).' },
+                { num: '3', icon: '🔗', title: 'Submit with link', desc: 'Paste the tweet URL and your X handle, upload the screenshot, and submit. The image is hosted automatically — no extra steps needed.' },
+                { num: '4', icon: '🤖', title: 'AI verification', desc: 'GenLayer validators cross-check your screenshot against the live tweet. Multiple AI models independently verify the proof and reach consensus.' },
+                { num: '5', icon: '✅', title: 'Get verified', desc: 'If the proof is genuine, your task is marked Verified and added to your tally. Faked screenshots are rejected with a reason.' },
+                { num: '6', icon: '🏆', title: 'Climb the leaderboard', desc: 'Each verified task earns you a spot on the leaderboard. The more you verify, the higher you rank in the community.' },
+              ].map(step => (
+                <div key={step.num} className="flex gap-4 sm:gap-5 p-4 sm:p-5 border border-border rounded-sm bg-canvas hover:bg-canvas-surface transition-colors">
+                  <div className="shrink-0 w-9 h-9 flex items-center justify-center rounded-sm font-bold text-[15px] text-white"
+                    style={{ backgroundColor: '#F54E00' }}>
+                    {step.num}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-lg">{step.icon}</span>
+                      <h3 className="text-[15px] sm:text-[16px] font-bold text-ink-deep">{step.title}</h3>
+                    </div>
+                    <p className="text-[13px] sm:text-[14px] text-ink leading-[1.6]">{step.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
 
         {/* ═══ DASHBOARD ═══════════════════════════════════ */}
