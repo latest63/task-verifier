@@ -129,9 +129,10 @@ export default function Home() {
     setSubmitting(true)
     try {
       setUploading(true)
+      if (screenshot.size > 10 * 1024 * 1024) throw new Error('Screenshot too large (max 10MB)')
       const fd = new FormData(); fd.append('file', screenshot)
       const controller = new AbortController()
-      const to = setTimeout(() => controller.abort(), 25000)
+      const to = setTimeout(() => controller.abort(), 15000)
       const up = await fetch('/api/upload', { method: 'POST', body: fd, signal: controller.signal })
       clearTimeout(to)
       if (!up.ok) { const err = await up.json(); throw new Error(err.error || 'Upload failed') }
@@ -147,7 +148,7 @@ export default function Home() {
       await waitForTx(hash)
       setScreenshot(null); setPreview(null); setTweetUrl(''); setHandle(''); setAction('like')
       setSubmitted(true); setTimeout(() => setSubmitted(false), 5000)
-    } catch (e: any) { setError(e?.message ?? 'Submission failed') } finally { setSubmitting(false); setUploading(false) }
+    } catch (e: any) { console.error('submit error:', e); setError(e?.message ?? 'Submission failed') } finally { setSubmitting(false); setUploading(false) }
   }
   const handleFile = (file: File | undefined) => { if (!file) { setScreenshot(null); setPreview(null); return }; setScreenshot(file); setPreview(URL.createObjectURL(file)) }
 
