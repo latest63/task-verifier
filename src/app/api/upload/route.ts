@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+const HOSTS = [
+  'https://0x0.st',
+  'https://envs.sh',
+]
+
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData()
@@ -8,12 +13,25 @@ export async function POST(req: NextRequest) {
 
     const upload = new FormData()
     upload.append('file', file)
-    const res = await fetch('https://0x0.st', { method: 'POST', body: upload })
-    if (!res.ok) return NextResponse.json({ error: 'Upload failed' }, { status: 502 })
 
-    const url = (await res.text()).trim()
-    return NextResponse.json({ url })
+    for (const host of HOSTS) {
+      try {
+        const controller = new AbortController()
+        const timeout = setTimeout(() => controller.abort(), 10000)
+        const res = await fetch(host, { method: 'POST', body: upload, signal: controller.signal })
+        clearTimeout(timeout)
+        if (res.ok) {
+          const url = (await res.text()).trim()
+          return NextResponse.json({ url })
+        }
+      } catch {
+        continue // try next host
+      }
+    }
+
+    return NextResponse.json({ error: 'All image hosts unreachable' }, { status: 502 })
   } catch (err) {
+    console.error('Upload error:', err)
     return NextResponse.json({ error: 'Upload error' }, { status: 500 })
   }
 }

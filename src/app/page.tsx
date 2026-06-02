@@ -130,7 +130,11 @@ export default function Home() {
     try {
       setUploading(true)
       const fd = new FormData(); fd.append('file', screenshot)
-      const up = await fetch('/api/upload', { method: 'POST', body: fd })
+      const controller = new AbortController()
+      const to = setTimeout(() => controller.abort(), 25000)
+      const up = await fetch('/api/upload', { method: 'POST', body: fd, signal: controller.signal })
+      clearTimeout(to)
+      if (!up.ok) { const err = await up.json(); throw new Error(err.error || 'Upload failed') }
       const { url } = await up.json(); setUploading(false)
 
       // Use pinned post for like, manual URL for retweet
