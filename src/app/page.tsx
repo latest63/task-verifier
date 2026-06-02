@@ -3,7 +3,9 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useAccount, useWalletClient } from 'wagmi'
 import { useWeb3Modal } from '@web3modal/wagmi/react'
-import { createPublicClient, http, defineChain } from 'viem'
+import { http, defineChain } from 'viem'
+import { createClient } from 'genlayer-js'
+import { testnetBradbury } from 'genlayer-js/chains'
 import ConnectWallet from '../../components/ConnectWallet'
 
 const bradbury = defineChain({
@@ -13,7 +15,9 @@ const bradbury = defineChain({
   blockExplorers: { default: { name: 'Bradbury Explorer', url: 'https://explorer-bradbury.genlayer.com' } },
   testnet: true,
 })
-const publicClient = createPublicClient({ chain: bradbury, transport: http() })
+
+// GenLayer JS client for reads (uses gen_call RPC, not eth_call)
+const glReadClient = createClient({ chain: testnetBradbury })
 
 const taskAbi = [
   { type: 'function', name: 'submit_task', inputs: [
@@ -39,7 +43,6 @@ const sc: Record<string, { label: string; style: string }> = {
   rejected: { label: 'Rejected', style: 'border-red-300/60 bg-red-50 text-red-800' },
 }
 const fmtAddr = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`
-
 const actionEmoji: Record<string, string> = { like: '❤️', retweet: '🔄', reply: '💬', post: '📝' }
 const GENLAYER_PINNED_POST = 'https://x.com/GenLayer/status/2033575658165867008'
 
@@ -65,19 +68,44 @@ export default function Home() {
   const [submitting, setSubmitting] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  useEffect(() => { if (error) { const t = setTimeout(() => setError(null), 6000); return () => clearTimeout(t) } }, [error])
 
   const fetchTasks = useCallback(async () => {
     if (!contractAddr) return
     setLoading(true)
     try {
-      const raw = await publicClient.readContract({
-        address: contractAddr as `0x${string}`, abi: taskAbi, functionName: 'get_all_tasks',
+      const raw = await glReadClient.readContract({
+        address: contractAddr as `0x${string}`,
+        functionName: 'get_all_tasks',
+        args: [],
       })
       if (raw && typeof raw === 'object') setTasks(raw as unknown as TaskMap)
+      setError(null)
     } catch (e) { console.error(e) } finally { setLoading(false) }
   }, [contractAddr])
 
   useEffect(() => { fetchTasks(); const i = setInterval(fetchTasks, 8000); return () => clearInterval(i) }, [fetchTasks])
+
+  const waitForTx = async (hash: string) => {
+    // Poll via genlayer-js compatible read until finalized
+    for (let i = 0; i < 30; i++) {
+      await new Promise(r => setTimeout(r, 2000))
+      try {
+        const receipt = await fetch('https://rpc-bradbury.genlayer.com', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            method: 'eth_getTransactionReceipt',
+            params: [hash],
+            id: 1,
+          }),
+        }).then(r => r.json())
+        if (receipt?.result) return receipt.result
+      } catch {}
+    }
+  }
 
   const verifyOne = async (taskId: string) => {
     if (!address || !walletClient) return
@@ -87,8 +115,8 @@ export default function Home() {
         account: address, address: contractAddr as `0x${string}`, abi: taskAbi,
         functionName: 'verify', args: [taskId], chain: bradbury,
       } as any)
-      await publicClient.waitForTransactionReceipt({ hash }); await fetchTasks()
-    } catch (e: any) { alert(e?.message ?? 'Failed') } finally { setVerifying(null) }
+      await waitForTx(hash); await fetchTasks()
+    } catch (e: any) { setError(e?.message ?? 'Verification failed') } finally { setVerifying(null) }
   }
 
   const verifyAll = async () => {
@@ -112,10 +140,10 @@ export default function Home() {
         account: address, address: contractAddr as `0x${string}`, abi: taskAbi,
         functionName: 'submit_task', args: [finalUrl, url, handle, action], chain: bradbury,
       } as any)
-      await publicClient.waitForTransactionReceipt({ hash });
+      await waitForTx(hash)
       setScreenshot(null); setPreview(null); setTweetUrl(''); setHandle(''); setAction('like')
       setSubmitted(true); setTimeout(() => setSubmitted(false), 5000)
-    } catch (e: any) { alert(e?.message ?? 'Failed') } finally { setSubmitting(false); setUploading(false) }
+    } catch (e: any) { setError(e?.message ?? 'Submission failed') } finally { setSubmitting(false); setUploading(false) }
   }
   const handleFile = (file: File | undefined) => { if (!file) { setScreenshot(null); setPreview(null); return }; setScreenshot(file); setPreview(URL.createObjectURL(file)) }
 
@@ -124,7 +152,7 @@ export default function Home() {
   const pendingN = Object.values(tasks).filter(t => t.status === 'pending').length
   const taskList = Object.entries(tasks).reverse()
 
-  // Leaderboard: group verified tasks by submitter
+  // Leaderboard
   const leaderboard = Object.values(tasks)
     .filter(t => t.status === 'verified')
     .reduce((acc: Record<string, { addr: string; count: number; handle: string }>, t) => {
@@ -166,6 +194,17 @@ export default function Home() {
             <p className="text-[14px] text-ink-faint max-w-md mx-auto leading-[1.5]">
               Set <code className="text-[13px] bg-canvas-surface px-1.5 py-0.5 rounded-sm font-mono text-ink">NEXT_PUBLIC_VERIFIER_CONTRACT</code> in your environment variables, then redeploy.
             </p>
+          </div>
+        )}
+
+        {/* Error banner */}
+        {error && (
+          <div className="mb-6 p-3 sm:p-4 border border-red-300/70 bg-red-50 rounded-sm flex items-start justify-between gap-2">
+            <div className="flex items-start gap-2.5">
+              <span className="text-red-500 text-[15px] mt-0.5 shrink-0">⚠</span>
+              <p className="text-[13px] sm:text-[14px] text-red-800 leading-[1.5]">{error}</p>
+            </div>
+            <button onClick={() => setError(null)} className="text-red-400 hover:text-red-600 text-[16px] leading-none shrink-0 font-bold">&times;</button>
           </div>
         )}
 
@@ -253,7 +292,7 @@ export default function Home() {
               </p>
             </div>
 
-            {/* Stats + Quick CTA */}
+            {/* Stats */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-8">
               <div className="p-2.5 sm:p-4 border border-border rounded-sm bg-canvas text-center">
                 <div className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-ink-faint mb-1">Tasks</div>
