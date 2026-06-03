@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   description: 'Upload a screenshot of a GenLayer X/Twitter post for AI-powered on-chain verification.',
   icons: {
     icon: [
-      { url: '/tv logo.png', type: 'image/png' },
+      { url: '/favicon.png', type: 'image/png' },
     ],
   },
   openGraph: {
