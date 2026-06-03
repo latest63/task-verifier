@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useAccount, useWalletClient } from 'wagmi'
 import { useWeb3Modal } from '@web3modal/wagmi/react'
-import { http, defineChain } from 'viem'
+import { defineChain } from 'viem'
 import { createClient } from 'genlayer-js'
 import { testnetBradbury } from 'genlayer-js/chains'
 import ConnectWallet from '../../components/ConnectWallet'
@@ -22,38 +22,25 @@ const STUDIO_CHAIN = defineChain({
   id: 1337, name: 'GenLayer Studio',
   nativeCurrency: { name: 'GEN', symbol: 'GEN', decimals: 18 },
   rpcUrls: { default: { http: ['https://studio.genlayer.com/api'] } },
-  blockExplorers: { default: { name: 'Studio Explorer', url: 'https://studio.genlayer.com/explorer' } },
+  blockExplorers: { default: { name: 'Studio', url: '#' } },
   testnet: true,
 })
 
-// Read clients for each network
-const glReadBradbury = createClient({ chain: testnetBradbury })
-const glReadStudio = createClient({
-  chain: { ...testnetBradbury, id: 1337, rpcUrls: { default: ['https://studio.genlayer.com/api'] } } as any,
-})
-
 // ── ABI ────────────────────────────────────────────────────────────
-
-const abi = [
-  { type: 'function', name: 'submit', inputs: [{ type: 'bytes', name: 'img_data' }], stateMutability: 'write' },
-  { type: 'function', name: 'verify', inputs: [{ type: 'string', name: 'task_id' }], stateMutability: 'write' },
-] as const
 
 type NetworkId = 'bradbury' | 'studionet'
 type View = 'task' | 'dashboard' | 'submit'
 
 const NETWORKS: Record<NetworkId, {
   label: string; color: string; chain: typeof BRADBURY;
-  readClient: typeof glReadBradbury; explorer: string
+  explorer: string
 }> = {
   bradbury: {
     label: 'Bradbury', color: '#F54E00', chain: BRADBURY,
-    readClient: glReadBradbury,
     explorer: 'https://explorer-bradbury.genlayer.com',
   },
   studionet: {
     label: 'Studio', color: '#6366f1', chain: STUDIO_CHAIN as any,
-    readClient: glReadStudio,
     explorer: '#',
   },
 }
@@ -79,7 +66,20 @@ export default function Home() {
 
   const contractAddr = network === 'bradbury' ? contractBradbury : contractStudio
   const netCfg = NETWORKS[network]
-  const glClient = netCfg.readClient
+
+  // Lazy read client — created on demand inside try-catch
+  const glClient = useMemo(() => {
+    try {
+      if (network === 'bradbury') return createClient({ chain: testnetBradbury })
+      // Studio: extend Bradbury chain with Studio RPC
+      return createClient({
+        chain: { ...testnetBradbury, id: 1337, rpcUrls: { default: ['https://studio.genlayer.com/api'] } } as any,
+      })
+    } catch (e) {
+      console.error('Failed to create read client:', e)
+      return null
+    }
+  }, [network])
 
   const { address, isConnected } = useAccount()
   const { data: walletClient } = useWalletClient()
@@ -196,15 +196,23 @@ export default function Home() {
     if (!address || !walletClient || !compressedBytes || !contractAddr) return
     setSubmitting(true); setTxHash(null); setTaskId(null); setResult(null)
     try {
-      const hash = await walletClient.writeContract({
-        account: address,
+      // Use genlayer-js write client with MetaMask for signing (not wagmi — GenLayer has own ABI encoding)
+      const { createClient } = await import('genlayer-js')
+      const { testnetBradbury } = await import('genlayer-js/chains')
+      const glChain = network === 'bradbury' ? testnetBradbury : { ...testnetBradbury, id: 1337, rpcUrls: { default: { http: ['https://studio.genlayer.com/api'] } } }
+      const glWriteClient = createClient({
+        chain: glChain as any,
+        account: address as `0x${string}`,
+        provider: window.ethereum,
+      })
+
+      const hash = await glWriteClient.writeContract({
         address: contractAddr as `0x${string}`,
-        abi,
         functionName: 'submit',
-        args: [compressedBytes],
-        chain: netCfg.chain as any,
-      } as any)
-      setTxHash(hash)
+        args: [Array.from(compressedBytes)],  // genlayer-js expects array of bytes
+        value: 0n,
+      })
+      setTxHash(hash as string)
 
       // Wait for tx receipt
       let receipt: any = null
@@ -226,9 +234,8 @@ export default function Home() {
 
       if (!receipt) throw new Error('Transaction not confirmed after 2 min')
 
-      // Decode task_id from logs or use contract state
+      // Refresh submissions and find latest
       await fetchSubs()
-      // Find latest submission from this address
       const entries = Object.entries(subs).filter(([, s]) => s.submitter.toLowerCase() === address.toLowerCase())
       const latest = entries[entries.length - 1]
       if (latest) setTaskId(latest[0])
@@ -238,7 +245,7 @@ export default function Home() {
       setFile(null); setRawPreview(null); setCompressedPreview(null); setCompressedBlob(null); setCompressedBytes(null); setCompressionInfo(null); setCompressWarn(null)
     } catch (e: any) {
       console.error('submit error:', e)
-      setError(e?.cause?.message || e?.shortMessage || e?.message || 'Submission failed')
+      setError(e?.cause?.message || e?.shortMessage || e?.message || e?.toString() || 'Submission failed')
     } finally { setSubmitting(false) }
   }
 
@@ -248,10 +255,21 @@ export default function Home() {
     if (!address || !walletClient) return
     setVerifying(id)
     try {
-      const hash = await walletClient.writeContract({
-        account: address, address: contractAddr as `0x${string}`, abi: abi,
-        functionName: 'verify', args: [id], chain: netCfg.chain as any,
-      } as any)
+      const { createClient } = await import('genlayer-js')
+      const { testnetBradbury } = await import('genlayer-js/chains')
+      const glChain = network === 'bradbury' ? testnetBradbury : { ...testnetBradbury, id: 1337, rpcUrls: { default: { http: ['https://studio.genlayer.com/api'] } } }
+      const glWriteClient = createClient({
+        chain: glChain as any,
+        account: address as `0x${string}`,
+        provider: window.ethereum,
+      })
+
+      const hash = await glWriteClient.writeContract({
+        address: contractAddr as `0x${string}`,
+        functionName: 'verify',
+        args: [id],
+        value: 0n,
+      })
 
       // Wait
       for (let i = 0; i < 60; i++) {
