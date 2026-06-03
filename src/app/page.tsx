@@ -192,7 +192,6 @@ export default function Home() {
       const glChain = network === 'bradbury' ? testnetBradbury : studionet
       const glWriteClient = createClient({
         chain: glChain as any,
-        account: address as `0x${string}`,
         provider: window.ethereum,
       })
 
@@ -267,7 +266,6 @@ export default function Home() {
       const glChain = network === 'bradbury' ? testnetBradbury : studionet
       const glWriteClient = createClient({
         chain: glChain as any,
-        account: address as `0x${string}`,
         provider: window.ethereum,
       })
 
