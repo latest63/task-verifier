@@ -37,7 +37,7 @@ const NETWORKS: Record<NetworkId, {
   explorer: string
 }> = {
   bradbury: {
-    label: 'Bradbury', color: '#2f79ee', chain: BRADBURY,
+    label: 'Bradbury', color: '#1e3a5f', chain: BRADBURY,
     explorer: 'https://explorer-bradbury.genlayer.com',
   },
   studionet: {
@@ -381,7 +381,7 @@ export default function Home() {
               }}
                 className={`px-3 py-1.5 text-[12px] font-bold rounded-sm border transition-all ${
                   network === 'bradbury'
-                    ? 'border-[#2f79ee] bg-[#2f79ee]/10 text-[#2f79ee]'
+                    ? 'border-[#1e3a5f] bg-[#1e3a5f]/10 text-[#1e3a5f]'
                     : 'border-border text-ink-faint hover:text-ink-muted'
                 }`}>
                 ⚡ Bradbury {contractBradbury.slice(0, 6)}…{contractBradbury.slice(-4)}
@@ -465,7 +465,7 @@ export default function Home() {
               ].map(step => (
                 <div key={step.num} className="flex gap-4 sm:gap-5 p-4 sm:p-5 border border-border rounded-sm bg-canvas hover:bg-canvas-surface transition-colors">
                   <div className="shrink-0 w-9 h-9 flex items-center justify-center rounded-sm font-bold text-[15px] text-white"
-                    style={{ backgroundColor: '#2f79ee' }}>
+                    style={{ backgroundColor: '#1e3a5f' }}>
                     {step.num}
                   </div>
                   <div className="min-w-0">
@@ -539,7 +539,7 @@ export default function Home() {
                   {!isConnected && (
                     <button onClick={() => open()}
                       className="mt-4 h-9 px-5 rounded-md text-[13px] font-semibold text-white transition-all"
-                      style={{ backgroundColor: '#2f79ee', border: 'none', cursor: 'pointer', boxShadow: '0 1px 4px rgba(47,121,238,0.25)' }}>
+                      style={{ backgroundColor: '#1e3a5f', border: 'none', cursor: 'pointer', boxShadow: '0 1px 4px rgba(30,58,95,0.3)' }}>
                       Connect to start
                     </button>
                   )}
@@ -604,7 +604,7 @@ export default function Home() {
                 Upload a screenshot of a <a href="https://x.com/GenLayer" target="_blank" rel="noopener" className="font-bold text-brand hover:underline">@GenLayer</a> post. The app auto-compresses it and submits to GenLayer AI for on-chain verification.
               </p>
               <div className="mt-2 flex items-center gap-2 text-[11px] text-ink-faint font-mono">
-                <span className={`inline-block w-2 h-2 rounded-full ${network === 'bradbury' ? 'bg-[#2f79ee]' : 'bg-indigo-500'}`} />
+                <span className={`inline-block w-2 h-2 rounded-full ${network === 'bradbury' ? 'bg-[#1e3a5f]' : 'bg-indigo-500'}`} />
                 {netCfg.label} · {contractAddr.slice(0, 10)}…{contractAddr.slice(-6)}
               </div>
             </div>
