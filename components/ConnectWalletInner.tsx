@@ -47,11 +47,11 @@ export default function ConnectWalletInner() {
         padding: '0 16px',
         fontSize: '12px',
         borderRadius: '6px',
-        backgroundColor: '#F54E00',
+        backgroundColor: '#1e3a5f',
         color: '#ffffff',
         border: 'none',
         cursor: 'pointer',
-        boxShadow: '0 1px 4px rgba(245, 78, 0, 0.25)',
+        boxShadow: '0 1px 4px rgba(30, 58, 95, 0.3)',
         transition: 'all 0.2s ease',
         fontWeight: 600,
       }}

@@ -14,7 +14,7 @@ const ConnectWalletInner = dynamic(
           height: '32px',
           width: '80px',
           borderRadius: '6px',
-          backgroundColor: 'rgba(245, 78, 0, 0.2)',
+          backgroundColor: 'rgba(30, 58, 95, 0.2)',
         }}
       />
     ),
