@@ -21,9 +21,9 @@ module.exports = {
           light: '#b6b7af',
         },
         brand: {
-          DEFAULT: '#F54E00',
-          hover: '#d44400',
-          dark: '#1e1f23',
+          DEFAULT: '#2f79ee',
+          hover: '#2563eb',
+          dark: '#1e3a5f',
         },
         focus: '#3b82f6',
       },

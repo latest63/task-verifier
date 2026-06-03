@@ -37,7 +37,7 @@ const NETWORKS: Record<NetworkId, {
   explorer: string
 }> = {
   bradbury: {
-    label: 'Bradbury', color: '#F54E00', chain: BRADBURY,
+    label: 'Bradbury', color: '#2f79ee', chain: BRADBURY,
     explorer: 'https://explorer-bradbury.genlayer.com',
   },
   studionet: {
@@ -381,7 +381,7 @@ export default function Home() {
               }}
                 className={`px-3 py-1.5 text-[12px] font-bold rounded-sm border transition-all ${
                   network === 'bradbury'
-                    ? 'border-[#F54E00] bg-[#F54E00]/10 text-[#F54E00]'
+                    ? 'border-[#2f79ee] bg-[#2f79ee]/10 text-[#2f79ee]'
                     : 'border-border text-ink-faint hover:text-ink-muted'
                 }`}>
                 ⚡ Bradbury {contractBradbury.slice(0, 6)}…{contractBradbury.slice(-4)}
@@ -465,7 +465,7 @@ export default function Home() {
               ].map(step => (
                 <div key={step.num} className="flex gap-4 sm:gap-5 p-4 sm:p-5 border border-border rounded-sm bg-canvas hover:bg-canvas-surface transition-colors">
                   <div className="shrink-0 w-9 h-9 flex items-center justify-center rounded-sm font-bold text-[15px] text-white"
-                    style={{ backgroundColor: '#F54E00' }}>
+                    style={{ backgroundColor: '#2f79ee' }}>
                     {step.num}
                   </div>
                   <div className="min-w-0">
@@ -539,7 +539,7 @@ export default function Home() {
                   {!isConnected && (
                     <button onClick={() => open()}
                       className="mt-4 h-9 px-5 rounded-md text-[13px] font-semibold text-white transition-all"
-                      style={{ backgroundColor: '#F54E00', border: 'none', cursor: 'pointer', boxShadow: '0 1px 4px rgba(245,78,0,0.25)' }}>
+                      style={{ backgroundColor: '#2f79ee', border: 'none', cursor: 'pointer', boxShadow: '0 1px 4px rgba(47,121,238,0.25)' }}>
                       Connect to start
                     </button>
                   )}
@@ -604,7 +604,7 @@ export default function Home() {
                 Upload a screenshot of a <a href="https://x.com/GenLayer" target="_blank" rel="noopener" className="font-bold text-brand hover:underline">@GenLayer</a> post. The app auto-compresses it and submits to GenLayer AI for on-chain verification.
               </p>
               <div className="mt-2 flex items-center gap-2 text-[11px] text-ink-faint font-mono">
-                <span className={`inline-block w-2 h-2 rounded-full ${network === 'bradbury' ? 'bg-[#F54E00]' : 'bg-indigo-500'}`} />
+                <span className={`inline-block w-2 h-2 rounded-full ${network === 'bradbury' ? 'bg-[#2f79ee]' : 'bg-indigo-500'}`} />
                 {netCfg.label} · {contractAddr.slice(0, 10)}…{contractAddr.slice(-6)}
               </div>
             </div>
@@ -629,7 +629,7 @@ export default function Home() {
                   <div>
                     <label className="block text-[13px] font-bold uppercase tracking-wide text-ink-muted mb-2">Screenshot</label>
                     <label className={`relative flex flex-col items-center justify-center w-full h-40 rounded-sm border border-dashed cursor-pointer transition-colors ${
-                      rawPreview ? 'border-brand/30 bg-orange-50/50' : 'border-border hover:border-brand/40 bg-canvas-surface'
+                      rawPreview ? 'border-brand/30 bg-blue-50/50' : 'border-border hover:border-brand/40 bg-canvas-surface'
                     }`}>
                       {rawPreview ? (
                         <img src={rawPreview} alt="Preview" className="absolute inset-0 w-full h-full object-contain rounded-sm p-2" />
