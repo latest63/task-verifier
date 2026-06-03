@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { writeFile, mkdir } from 'fs/promises'
-import { join } from 'path'
-import { randomUUID } from 'crypto'
 
-const HOSTS = ['https://temp.sh/upload', 'https://0x0.st']
+const HOSTS = ['https://temp.sh/upload']
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,14 +10,7 @@ export async function POST(req: NextRequest) {
 
     const bytes = Buffer.from(await file.arrayBuffer())
     const ext = file.name?.split('.').pop() || 'png'
-    const filename = `${randomUUID()}.${ext}`
-
-    // Always save locally as fallback
-    const dir = join(process.cwd(), 'public', 'uploads')
-    await mkdir(dir, { recursive: true })
-    await writeFile(join(dir, filename), new Uint8Array(bytes))
-
-    const localUrl = `/uploads/${filename}`
+    const filename = `${crypto.randomUUID()}.${ext}`
 
     // Try external hosts in parallel — first one wins
     const results = await Promise.allSettled(
@@ -40,8 +30,13 @@ export async function POST(req: NextRequest) {
       (r): r is PromiseFulfilledResult<string> => r.status === 'fulfilled'
     )?.value
 
-    // Return external URL if available, otherwise local
-    return NextResponse.json({ url: externalUrl || localUrl })
+    if (!externalUrl) {
+      const errors = results.map(r => r.status === 'rejected' ? (r.reason?.message || String(r.reason)) : 'skipped')
+      console.error('All upload hosts failed:', errors)
+      return NextResponse.json({ error: 'All upload hosts unavailable' }, { status: 502 })
+    }
+
+    return NextResponse.json({ url: externalUrl })
   } catch (err) {
     console.error('Upload error:', err)
     return NextResponse.json({ error: 'Upload failed' }, { status: 500 })
