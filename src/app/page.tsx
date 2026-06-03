@@ -1,11 +1,4 @@
 import Link from 'next/link'
-import { IBM_Plex_Sans } from 'next/font/google'
-
-const ibmPlex = IBM_Plex_Sans({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-ibm-plex',
-})
 
 export default function LandingPage() {
   return (
@@ -29,18 +22,18 @@ export default function LandingPage() {
         <div className="py-16 sm:py-20 md:py-28">
           <div className="inline-flex items-center gap-2 px-3 py-1 mb-5 sm:mb-6 bg-brand-dark/5 border border-brand-dark/20 rounded-full text-[11px] sm:text-[12px] font-bold text-brand-dark uppercase tracking-wider">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-            Zero API Fees · On-Chain AI
+            Zero API Fees · On-Chain Verifications
           </div>
 
-          <h1 className="text-[32px] sm:text-[42px] md:text-[52px] font-extrabold text-ink-deep leading-[1.05] tracking-[-1.5px] max-w-2xl">
-            Verify GenLayer Posts<br />
-            <span className="text-brand-dark">with AI Consensus</span>
+          <h1 className="text-[32px] sm:text-[42px] md:text-[52px] font-extrabold text-ink-deep leading-[1.05] tracking-[-1.5px] max-w-3xl">
+            Verify X Social Tasks<br />
+            <span className="text-brand-dark">with On-Chain AI Consensus</span>
           </h1>
 
           <p className="mt-4 sm:mt-5 text-[15px] sm:text-[18px] text-ink leading-[1.6] max-w-xl">
-            Upload a screenshot of any <strong className="text-ink-deep">@GenLayer</strong> X post —
-            our AI validators check it on-chain. <strong className="text-ink-deep">$0 in API fees</strong>,
-            just the gas to submit.
+            Your users upload proof of X/Twitter actions — posts, comments, likes, retweets. 
+            Our AI validators check each submission against GenLayer&rsquo;s on-chain consensus. 
+            <strong className="text-ink-deep"> $0 in API fees</strong>, only gas costs.
           </p>
 
           <div className="flex flex-wrap gap-3 mt-6 sm:mt-8">
@@ -60,10 +53,10 @@ export default function LandingPage() {
       <section className="max-w-5xl mx-auto px-3 sm:px-6 pb-16 sm:pb-20">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           {[
-            { icon: '💰', title: 'Zero API Fees', desc: 'No API keys, no credits, no subscriptions. Just connect your wallet and pay the gas — the AI verification itself costs $0.' },
-            { icon: '🤖', title: '4 AI Validators', desc: 'Your screenshot is checked by multiple AI models running on GenLayer. They reach consensus before the result is final.' },
-            { icon: '🔗', title: 'On-Chain Forever', desc: 'Every verdict is stored on the GenLayer blockchain. Tamper-proof, transparent, and always verifiable by anyone.' },
-            { icon: '⚡', title: 'Under 2 Minutes', desc: 'Upload, submit, and get your result in roughly 90 seconds. No waiting around.' },
+            { icon: '💰', title: 'Zero API Fees', desc: 'No API keys, no credits, no subscriptions. Your users just connect a wallet and pay the gas — the AI verification costs $0.' },
+            { icon: '🤖', title: 'Multi-Model AI Consensus', desc: 'Every submission is checked by 4 independent AI validators running on GenLayer. They vote — consensus decides the final verdict.' },
+            { icon: '🔗', title: 'On-Chain Proof', desc: 'Every verdict lives on the GenLayer blockchain. Tamper-proof, transparent, and publicly verifiable by anyone, anytime.' },
+            { icon: '⚡', title: 'Plug & Play Integration', desc: 'Deploy a contract, point your users to the app, and go. No complex setup, no hidden infrastructure.' },
           ].map(f => (
             <div key={f.title} className="p-4 sm:p-5 border border-border rounded-sm bg-canvas hover:bg-canvas-surface transition-colors">
               <div className="flex items-center gap-3 mb-2">
@@ -80,16 +73,16 @@ export default function LandingPage() {
       <section className="max-w-5xl mx-auto px-3 sm:px-6 pb-16 sm:pb-20">
         <div className="mb-6 sm:mb-8">
           <h2 className="text-[20px] sm:text-[24px] font-extrabold text-ink-deep tracking-[-0.5px]">How It Works</h2>
-          <p className="mt-1.5 text-[14px] sm:text-[15px] text-ink">Five simple steps to verify any GenLayer post.</p>
+          <p className="mt-1.5 text-[14px] sm:text-[15px] text-ink">From user submission to on-chain verdict in under 2 minutes.</p>
         </div>
 
         <div className="space-y-3 sm:space-y-4">
           {[
-            { num: '01', icon: '📸', title: 'Screenshot a post', desc: 'Find any post from @GenLayer on X and take a clean screenshot.' },
-            { num: '02', icon: '📤', title: 'Upload it here', desc: 'Drop the screenshot. The app auto-compresses it to fit the 50KB chain limit.' },
-            { num: '03', icon: '🔗', title: 'Submit to GenLayer', desc: 'Connect your wallet and submit. Only gas fees — no API costs.' },
-            { num: '04', icon: '🤖', title: 'AI validators check it', desc: '4 AI models analyze the screenshot and vote. Consensus = final answer.' },
-            { num: '05', icon: '✅', title: 'Result on-chain', desc: 'The verdict is stored forever on GenLayer. Check the Activity tab anytime.' },
+            { num: '01', icon: '📸', title: 'User submits proof', desc: 'Your users upload a screenshot of their X/Twitter action — post, comment, like, or retweet.' },
+            { num: '02', icon: '📤', title: 'Auto-compressed for chain', desc: 'The image is automatically compressed to fit the 50KB on-chain limit. No manual work needed.' },
+            { num: '03', icon: '🔗', title: 'Submitted to GenLayer', desc: 'The proof is submitted to the blockchain. Only gas fees — no API costs, no recurring charges.' },
+            { num: '04', icon: '🤖', title: 'AI validators reach consensus', desc: '4 AI models independently analyze the screenshot and vote. A majority decides the outcome.' },
+            { num: '05', icon: '✅', title: 'Verdict stored on-chain', desc: 'The result is permanently stored on GenLayer. Anyone can verify it anytime in the Activity feed.' },
           ].map(step => (
             <div key={step.num} className="flex gap-4 sm:gap-5 p-4 sm:p-5 border border-border rounded-sm bg-canvas hover:bg-canvas-surface transition-colors group">
               <div className="shrink-0 w-10 h-10 flex items-center justify-center rounded-sm font-bold text-[14px] text-white bg-brand-dark group-hover:opacity-80 transition-opacity">
@@ -117,7 +110,7 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto px-3 sm:px-6 py-12 sm:py-16">
           <div className="mb-8 sm:mb-10">
             <h2 className="text-[20px] sm:text-[24px] font-extrabold text-ink-deep tracking-[-0.5px]">Roadmap</h2>
-            <p className="mt-1.5 text-[14px] sm:text-[15px] text-ink">More X/Twitter action types coming soon after Post Verification.</p>
+            <p className="mt-1.5 text-[14px] sm:text-[15px] text-ink">Verification types we support — live and upcoming.</p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
@@ -127,7 +120,7 @@ export default function LandingPage() {
                 <h3 className="text-[15px] sm:text-[16px] font-bold text-ink-deep">Post Verification</h3>
               </div>
               <p className="text-[13px] sm:text-[14px] text-ink leading-[1.6]">
-                Verify screenshots of GenLayer X posts. Live now — the first action on our roadmap.
+                Verify a screenshot of an X post.
               </p>
               <span className="inline-block mt-2 text-[11px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-sm">Live</span>
             </div>
@@ -138,7 +131,7 @@ export default function LandingPage() {
                 <h3 className="text-[15px] sm:text-[16px] font-bold text-ink-muted">Comment Verification</h3>
               </div>
               <p className="text-[13px] sm:text-[14px] text-ink leading-[1.6]">
-                Verify that GenLayer commented on a specific post. Coming soon.
+                Verify a user&rsquo;s comment on a specific post.
               </p>
               <span className="inline-block mt-2 text-[11px] font-bold uppercase tracking-wider text-ink-faint bg-canvas-surface px-2 py-0.5 rounded-sm">Upcoming</span>
             </div>
@@ -149,7 +142,7 @@ export default function LandingPage() {
                 <h3 className="text-[15px] sm:text-[16px] font-bold text-ink-muted">Like Verification</h3>
               </div>
               <p className="text-[13px] sm:text-[14px] text-ink leading-[1.6]">
-                Verify that GenLayer liked a specific post. Coming soon.
+                Verify a user&rsquo;s like on a specific post.
               </p>
               <span className="inline-block mt-2 text-[11px] font-bold uppercase tracking-wider text-ink-faint bg-canvas-surface px-2 py-0.5 rounded-sm">Upcoming</span>
             </div>
@@ -160,7 +153,7 @@ export default function LandingPage() {
                 <h3 className="text-[15px] sm:text-[16px] font-bold text-ink-muted">Retweet Verification</h3>
               </div>
               <p className="text-[13px] sm:text-[14px] text-ink leading-[1.6]">
-                Verify that GenLayer retweeted a specific post. Coming soon.
+                Verify a user&rsquo;s retweet of a specific post.
               </p>
               <span className="inline-block mt-2 text-[11px] font-bold uppercase tracking-wider text-ink-faint bg-canvas-surface px-2 py-0.5 rounded-sm">Upcoming</span>
             </div>

@@ -761,64 +761,7 @@ export default function Home() {
           </>
         )}
       </div>
-
-      {/* ════════ ROADMAP ════════ */}
-      <section className="border-t border-border bg-canvas">
-        <div className="max-w-5xl mx-auto px-3 sm:px-6 py-12 sm:py-16">
-          <div className="mb-8 sm:mb-10">
-            <h2 className="text-[20px] sm:text-[24px] font-extrabold text-ink-deep tracking-[-0.5px]">Roadmap</h2>
-            <p className="mt-1.5 text-[14px] sm:text-[15px] text-ink">More X/Twitter action types coming soon after Post Verification.</p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-            <div className="p-4 sm:p-5 border border-emerald-300/60 bg-emerald-50/40 rounded-sm">
-              <div className="flex items-center gap-3 mb-2">
-                <span className="w-7 h-7 flex items-center justify-center rounded-full bg-emerald-500 text-white text-[12px] font-bold shrink-0">✓</span>
-                <h3 className="text-[15px] sm:text-[16px] font-bold text-ink-deep">Post Verification</h3>
-              </div>
-              <p className="text-[13px] sm:text-[14px] text-ink leading-[1.6]">
-                Verify screenshots of GenLayer X posts. Live now — the first action on our roadmap.
-              </p>
-              <span className="inline-block mt-2 text-[11px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-sm">Live</span>
-            </div>
-
-            <div className="p-4 sm:p-5 border border-border rounded-sm bg-canvas opacity-60">
-              <div className="flex items-center gap-3 mb-2">
-                <span className="w-7 h-7 flex items-center justify-center rounded-full bg-ink-faint/30 text-ink-faint text-[14px] font-bold shrink-0">+</span>
-                <h3 className="text-[15px] sm:text-[16px] font-bold text-ink-muted">Comment Verification</h3>
-              </div>
-              <p className="text-[13px] sm:text-[14px] text-ink leading-[1.6]">
-                Verify that GenLayer commented on a specific post. Coming soon.
-              </p>
-              <span className="inline-block mt-2 text-[11px] font-bold uppercase tracking-wider text-ink-faint bg-canvas-surface px-2 py-0.5 rounded-sm">Upcoming</span>
-            </div>
-
-            <div className="p-4 sm:p-5 border border-border rounded-sm bg-canvas opacity-60">
-              <div className="flex items-center gap-3 mb-2">
-                <span className="w-7 h-7 flex items-center justify-center rounded-full bg-ink-faint/30 text-ink-faint text-[14px] font-bold shrink-0">+</span>
-                <h3 className="text-[15px] sm:text-[16px] font-bold text-ink-muted">Like Verification</h3>
-              </div>
-              <p className="text-[13px] sm:text-[14px] text-ink leading-[1.6]">
-                Verify that GenLayer liked a specific post. Coming soon.
-              </p>
-              <span className="inline-block mt-2 text-[11px] font-bold uppercase tracking-wider text-ink-faint bg-canvas-surface px-2 py-0.5 rounded-sm">Upcoming</span>
-            </div>
-
-            <div className="p-4 sm:p-5 border border-border rounded-sm bg-canvas opacity-60">
-              <div className="flex items-center gap-3 mb-2">
-                <span className="w-7 h-7 flex items-center justify-center rounded-full bg-ink-faint/30 text-ink-faint text-[14px] font-bold shrink-0">+</span>
-                <h3 className="text-[15px] sm:text-[16px] font-bold text-ink-muted">Retweet Verification</h3>
-              </div>
-              <p className="text-[13px] sm:text-[14px] text-ink leading-[1.6]">
-                Verify that GenLayer retweeted a specific post. Coming soon.
-              </p>
-              <span className="inline-block mt-2 text-[11px] font-bold uppercase tracking-wider text-ink-faint bg-canvas-surface px-2 py-0.5 rounded-sm">Upcoming</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <footer className="border-t border-border bg-canvas-surface/50">
+      <footer className="border-t border-border bg-canvas mt-16">
         <div className="max-w-5xl mx-auto px-3 sm:px-6 py-5 sm:py-6 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-0">
           <div className="text-[11px] sm:text-[12px] font-semibold text-ink-faint text-center sm:text-left">
             Powered by GenLayer AI consensus
