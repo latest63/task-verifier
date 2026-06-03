@@ -346,7 +346,6 @@ export default function Home() {
         <div className="max-w-5xl mx-auto px-3 sm:px-6 h-14 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <img src="/logo-nav.png" alt="Task Verifier" className="w-[150px] h-[150px] rounded-sm object-contain" />
-            <span className="hidden sm:inline text-[15px] font-semibold text-ink-deep tracking-tight">Task Verifier</span>
           </div>
 
           <div className="flex bg-canvas-surface rounded-sm border border-border p-0.5 shrink-0">

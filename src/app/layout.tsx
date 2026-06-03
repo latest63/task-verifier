@@ -15,8 +15,12 @@ export const metadata: Metadata = {
   description: 'Upload a screenshot of a GenLayer X/Twitter post for AI-powered on-chain verification.',
   icons: {
     icon: [
-      { url: '/logo-nav.png', type: 'image/png' },
+      { url: '/favicon.ico', type: 'image/x-icon' },
+      { url: '/logo-nav.png', type: 'image/png', sizes: '150x150' },
     ],
+    appleWebApp: {
+      title: 'Task Verifier',
+    },
   },
   openGraph: {
     title: 'Task Verifier — GenLayer Post Verifier',
