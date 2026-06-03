@@ -125,40 +125,40 @@ class TaskVerifier(gl.Contract):
             img_resp = gl.nondet.web.get(task.screenshot_url)
             img_bytes = img_resp.body
 
+            # Validate image is not empty/broken
+            if not img_bytes or len(img_bytes) < 100:
+                return json.dumps({
+                    "verified": False,
+                    "score": 0,
+                    "evidence": ["Image fetch returned empty or truncated data"],
+                    "reason": "Screenshot URL returned no valid image data"
+                }, sort_keys=True)
+
             # Step 3: LLM vision cross-analysis
-            prompt = f"""You are a screenshot verification agent.
+            prompt = f"""You are a screenshot verification agent with vision capability.
 
-Determine whether the uploaded image is likely showing the target GenLayer X/Twitter post.
+You are given ONE image. Analyze ONLY what you can actually see in this image.
 
-Do NOT require exact positioning, exact engagement numbers, exact timestamps, exact screen dimensions, or exact UI layouts.
+CRITICAL INSTRUCTIONS — READ FIRST:
+1. If the image does NOT show an X/Twitter interface at all, score = 0 and verified = false.
+2. If the image shows a random photo, landscape, animal, food, meme, or anything that is NOT a tweet screenshot, score = 0 and verified = false.
+3. If the image is a screenshot but shows a DIFFERENT tweet (not GenLayer), score = 0 and verified = false.
+4. Only if the image actually shows an X/Twitter post about GenLayer, proceed to scoring below.
+5. If you are unsure what the image shows, score = 0 and verified = false. NEVER guess.
 
-Look for evidence.
+Expected X handle: @{task.expected_handle}
+Expected action: {task.action_type} (like or retweet)
 
-Strong evidence:
-- GenLayer branding is visible
-- @GenLayer handle is visible
-- The phrase "GenLayer Portal" appears
-- The phrase "now live" appears
-- Portal announcement context is visible
-- X/Twitter interface is recognizable
+=== LIVE TWEET PAGE TEXT (for reference only) ===
+{page_text}
 
-Medium evidence:
-- Portal ecosystem language appears
-- Points or missions language appears
-- Leaderboard language appears
-- Video preview is present
+Now SCORE the image using this rubric ONLY if it is a valid X/Twitter screenshot:
 
-Weak evidence:
-- General similarity to a GenLayer tweet
-
-Scoring:
-
-Handle match: 40 points
-Tweet content match: 40 points
-Platform/UI match: 20 points
+Handle match (40 pts): Does the screenshot show @{task.expected_handle}? Must match exactly.
+Tweet content match (40 pts): Does the tweet text match "GenLayer Portal" / "now live" / portal announcement?
+Platform/UI match (20 pts): Is this clearly the X/Twitter mobile app or web interface?
 
 Verification rules:
-
 Score >= 70 → verified = true
 Score < 70 → verified = false
 
