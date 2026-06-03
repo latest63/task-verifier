@@ -68,7 +68,8 @@ class TaskVerifier(gl.Contract):
         if self.used_screenshots.get(screenshot_url, False):
             raise gl.vm.UserError("this screenshot has already been used")
 
-        if self.used_urls.get(tweet_url, False):
+        # Only check URL reuse for retweets — likes all share the same pinned post
+        if action_type != "like" and self.used_urls.get(tweet_url, False):
             raise gl.vm.UserError("this tweet URL has already been used")
 
         existing = self.verified_handles.get(expected_handle)
@@ -94,9 +95,10 @@ class TaskVerifier(gl.Contract):
         )
         self.task_count = u256(int(self.task_count) + 1)
 
-        # Reserve screenshot + URL at submit time
+        # Reserve screenshot at submit time; URLs only for retweets
         self.used_screenshots[screenshot_url] = True
-        self.used_urls[tweet_url] = True
+        if action_type != "like":
+            self.used_urls[tweet_url] = True
 
         return task_id
 
@@ -172,7 +174,6 @@ Respond STRICTLY in this JSON format, no other text:
         if verdict_json["verdict"] == "verified":
             # Map handle to the submitter's wallet so no one else can claim it
             self.verified_handles[task.expected_handle] = task.submitter
-            # screenshot + tweet_url are already locked at submit time
 
         return verdict_json
 
