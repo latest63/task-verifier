@@ -18,9 +18,6 @@ export const metadata: Metadata = {
       { url: '/favicon.ico', type: 'image/x-icon' },
       { url: '/logo-nav.png', type: 'image/png', sizes: '150x150' },
     ],
-    appleWebApp: {
-      title: 'Task Verifier',
-    },
   },
   openGraph: {
     title: 'Task Verifier — GenLayer Post Verifier',
