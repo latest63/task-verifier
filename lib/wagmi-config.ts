@@ -20,7 +20,8 @@ const studionet = {
   name: 'GenLayer Studio',
   nativeCurrency: { name: 'GEN', symbol: 'GEN', decimals: 18 },
   rpcUrls: {
-    default: { http: ['https://studio.genlayer.com/api'] },\n    public: { http: ['https://studio.genlayer.com/api'] },
+    default: { http: ['https://studio.genlayer.com/api'] },
+    public: { http: ['https://studio.genlayer.com/api'] },
   },
   testnet: true,
 } as const

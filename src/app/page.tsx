@@ -22,6 +22,7 @@ const STUDIO_CHAIN = defineChain({
   id: 1337, name: 'GenLayer Studio',
   nativeCurrency: { name: 'GEN', symbol: 'GEN', decimals: 18 },
   rpcUrls: { default: { http: ['https://studio.genlayer.com/api'] } },
+  blockExplorers: { default: { name: 'Studio Explorer', url: 'https://studio.genlayer.com/explorer' } },
   testnet: true,
 })
 
@@ -51,7 +52,7 @@ const NETWORKS: Record<NetworkId, {
     explorer: 'https://explorer-bradbury.genlayer.com',
   },
   studionet: {
-    label: 'Studio', color: '#6366f1', chain: STUDIO_CHAIN,
+    label: 'Studio', color: '#6366f1', chain: STUDIO_CHAIN as any,
     readClient: glReadStudio,
     explorer: '#',
   },
