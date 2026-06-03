@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useAccount, useWalletClient } from 'wagmi'
 import { useWeb3Modal } from '@web3modal/wagmi/react'
-import { defineChain } from 'viem'
+import { defineChain, createPublicClient, http } from 'viem'
 import { createClient } from 'genlayer-js'
 import { testnetBradbury, studionet } from 'genlayer-js/chains'
 import ConnectWallet from '../../components/ConnectWallet'
@@ -228,25 +228,15 @@ export default function Home() {
       })
       setTxHash(hash as string)
 
-      // Wait for tx receipt
-      let receipt: any = null
-      for (let i = 0; i < 60; i++) {
-        await new Promise(r => setTimeout(r, 2000))
-        try {
-          const rpc = netCfg.chain.rpcUrls.default.http[0]
-          const resp = await fetch(rpc, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              jsonrpc: '2.0', method: 'eth_getTransactionReceipt',
-              params: [hash], id: 1,
-            }),
-          }).then(r => r.json())
-          if (resp?.result) { receipt = resp.result; break }
-        } catch { /* retry */ }
-      }
-
-      if (!receipt) throw new Error('Transaction not confirmed after 2 min')
+      // Wait for tx receipt via viem (more reliable than raw RPC polling)
+      const publicClient = createPublicClient({
+        chain: activeChain as any,
+        transport: http(),
+      })
+      const receipt = await publicClient.waitForTransactionReceipt({
+        hash: hash as `0x${string}`,
+        timeout: 120_000,
+      })
 
       // Refresh submissions and find latest
       await fetchSubs()
@@ -298,21 +288,15 @@ export default function Home() {
         value: 0n,
       })
 
-      // Wait
-      for (let i = 0; i < 60; i++) {
-        await new Promise(r => setTimeout(r, 2000))
-        try {
-          const rpc = netCfg.chain.rpcUrls.default.http[0]
-          const resp = await fetch(rpc, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              jsonrpc: '2.0', method: 'eth_getTransactionReceipt',
-              params: [hash], id: 1,
-            }),
-          }).then(r => r.json())
-          if (resp?.result) break
-        } catch { /* retry */ }
-      }
+      // Wait for receipt via viem
+      const publicClient = createPublicClient({
+        chain: activeChainVerify as any,
+        transport: http(),
+      })
+      await publicClient.waitForTransactionReceipt({
+        hash: hash as `0x${string}`,
+        timeout: 120_000,
+      })
       await fetchSubs()
     } catch (e: any) {
       setError(e?.cause?.message || e?.shortMessage || e?.message || 'Verification failed')
