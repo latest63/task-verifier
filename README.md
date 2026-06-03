@@ -1,21 +1,39 @@
 # Task Verifier
 
-Verify social media actions with AI consensus on [GenLayer](https://genlayer.com). Your community submits proof (screenshots), and GenLayer's AI validators cross-reference against live tweets to reach consensus on-chain.
+**Verify X/Twitter social tasks with on-chain AI consensus.**
+
+A plug-and-play platform that lets your community submit proof of X actions (posts, comments, likes, retweets) and have them verified by AI validators running on GenLayer — **$0 in API fees**, just gas costs.
+
+The included **GenLayer Post Verification** is a sample implementation. Fork it, deploy your own contract, and adapt it to any X action type.
+
+---
 
 ## How it works
 
-1. **Deploy the contract** on GenLayer Bradbury testnet
-2. **Set your contract address** as an environment variable
-3. **Share the contract address** with your community
-4. **Community members submit proof** of completed tasks (like, retweet, reply, post)
-5. **You verify submissions** — GenLayer AI checks the screenshot against the actual tweet
-6. **Consensus is reached on-chain** — verified or rejected
+1. **Your users** upload a screenshot of their X action (post, comment, like, retweet)
+2. The image is auto-compressed and submitted to GenLayer
+3. **4 AI validators** independently analyze the screenshot and vote
+4. Consensus is reached on-chain — the verdict is stored permanently
+
+Zero API keys, no subscriptions, no hidden costs.
+
+---
+
+## Project structure
+
+| Route | What it is |
+|---|---|
+| `/` | Landing page — pitch, features, roadmap |
+| `/app` | The app — submit screenshots, view activity, verify submissions |
+| `/api/upload` | Image upload endpoint |
+
+---
 
 ## Quick start
 
-### 1. Deploy the contract
+### 1. Deploy your contract
 
-The verification contract is at [`contract/task_verifier.py`](./contract/task_verifier.py).
+The sample contract is at [`contract/task_verifier.py`](./contract/task_verifier.py). It verifies GenLayer X post screenshots.
 
 ```bash
 # Install GenLayer CLI
@@ -24,7 +42,7 @@ npm install -g genlayer
 # Switch to Bradbury testnet
 genlayer network testnet-bradbury
 
-# Deploy (you'll be prompted to confirm with your wallet)
+# Deploy
 genlayer contract deploy contract/task_verifier.py
 ```
 
@@ -42,53 +60,71 @@ npm install
 ```
 
 Create `.env.local`:
+
 ```
 NEXT_PUBLIC_VERIFIER_CONTRACT=0x_YOUR_DEPLOYED_CONTRACT_ADDRESS
 ```
 
-### 3. Deploy to Vercel
+### 3. Run locally
+
+```bash
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) for the landing page, then navigate to `/app` to use the verifier.
+
+### 4. Deploy to production
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/latest63/task-verifier)
 
-Or manually:
-
-```bash
-npm run build
-```
-
 Set the same env var on Vercel: `NEXT_PUBLIC_VERIFIER_CONTRACT` = your contract address.
 
-### 4. Share with your community
+### 5. Share with your community
 
-Your community members need:
-- Your deployed contract address
-- Your Vercel URL (or they interact directly with the contract)
+Your users visit your deployed URL and submit screenshots of their X actions. After submission, any connected wallet can trigger verification.
 
-They submit proof via the contract's `submit_task` function with:
-- `tweet_url` — the tweet they engaged with
-- `screenshot_url` — publicly hosted screenshot (use 0x0.st or any image host)
-- `expected_handle` — their X handle
-- `action_type` — `like`, `retweet`, `reply`, or `post`
+---
 
-### 5. Verify
+## Roadmap
 
-Connect your wallet to the dashboard, click **Verify** on any pending submission. GenLayer validators will check the proof and reach consensus.
+| Feature | Status |
+|---|---|
+| Post Verification (sample) | ✅ Live |
+| Comment Verification | 🔜 Upcoming |
+| Like Verification | 🔜 Upcoming |
+| Retweet Verification | 🔜 Upcoming |
+
+The contract and frontend are designed to be extended. Each action type follows the same pattern — upload a screenshot, AI validators check it, result is stored on-chain.
+
+---
 
 ## Tech stack
 
-- **Next.js 14** — frontend framework
-- **GenLayer Bradbury** — AI-powered consensus (chain 4221)
+- **Next.js 14 (App Router)** — frontend framework
+- **GenLayer Bradbury** — AI-powered consensus blockchain (chain 4221)
 - **Web3Modal (AppKit)** — wallet connection
-- **wagmi + viem** — chain interaction
-- **PostHog design system** — warm olive/sage UI
-- **0x0.st** — free image hosting
+- **wagmi + viem** — chain interaction and wallet management
+- **genlayer-js** — GenLayer contract interaction (read/write, ABI encoding)
+- **PostHog design system** — warm olive/sage UI palette
+- **TypeScript** — full type safety
 
 ## Environment variables
 
 | Variable | Required | Description |
-|----------|----------|-------------|
+|---|---|---|
 | `NEXT_PUBLIC_VERIFIER_CONTRACT` | Yes | Your deployed contract address on Bradbury |
-| `NEXT_PUBLIC_WALLETCONNECT_ID` | No | WalletConnect project ID (for QR/ mobile wallets) |
+| `NEXT_PUBLIC_VERIFIER_CONTRACT_STUDIO` | No | Contract address on StudioNet (optional testnet) |
+| `NEXT_PUBLIC_WALLETCONNECT_ID` | No | WalletConnect project ID (QR/mobile wallets) |
+
+## Customizing for your use case
+
+The GenLayer Post Verification is a **sample** — the simplest instantiation of the pattern. To verify different X actions:
+
+1. **Deploy your own contract** — modify `contract/task_verifier.py` to handle the action type you care about
+2. **Update the frontend** — point `NEXT_PUBLIC_VERIFIER_CONTRACT` to your new contract
+3. **The AI validators** handle the rest — no API fees, no additional infrastructure
+
+---
 
 ## License
 

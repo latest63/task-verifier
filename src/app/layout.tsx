@@ -16,6 +16,7 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       { url: '/favicon.ico', type: 'image/x-icon' },
+      { url: '/tv1.png', type: 'image/png', sizes: '500x500' },
     ],
   },
   openGraph: {
