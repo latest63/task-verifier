@@ -126,29 +126,52 @@ class TaskVerifier(gl.Contract):
             img_bytes = img_resp.body
 
             # Step 3: LLM vision cross-analysis
-            prompt = f"""You are a task verification AI. You must determine if a screenshot is GENUINE or FAKED.
+            prompt = f"""You are a screenshot verification agent.
 
-Expected X handle: @{task.expected_handle}
-Expected action: {task.action_type} (like or retweet)
+Determine whether the uploaded image is likely showing the target GenLayer X/Twitter post.
 
-=== TWEET PAGE CONTENT (fetched live from URL) ===
-{page_text}
+Do NOT require exact positioning, exact engagement numbers, exact timestamps, exact screen dimensions, or exact UI layouts.
 
-Analyze the screenshot image I have attached alongside this text:
+Look for evidence.
 
-1. Does the screenshot show X handle @{task.expected_handle} specifically? The handle must match exactly.
-2. Does the screenshot show @{task.expected_handle} having {task.action_type}ed this specific tweet?
-3. Does the tweet text/content in the screenshot match the real tweet from the URL above?
-4. Are the engagement numbers (likes, retweets, replies) consistent between the screenshot and the live page?
-5. Are there any visual signs of manipulation (misaligned text, inconsistent fonts, fake UI elements)?
+Strong evidence:
+- GenLayer branding is visible
+- @GenLayer handle is visible
+- The phrase "GenLayer Portal" appears
+- The phrase "now live" appears
+- Portal announcement context is visible
+- X/Twitter interface is recognizable
 
-CRITICAL — READ THIS FIRST:
-- If the image is NOT a valid X/Twitter screenshot (e.g. error page, blank image, broken image icon, HTML page, placeholder, random graphic), the verdict MUST be "rejected".
-- If the screenshot shows a DIFFERENT handle or does not clearly show @{task.expected_handle}'s interaction, the verdict must be "rejected".
-- A blank, unreadable, or clearly-not-X-screenshot image is an automatic rejection regardless of the text context.
+Medium evidence:
+- Portal ecosystem language appears
+- Points or missions language appears
+- Leaderboard language appears
+- Video preview is present
 
-Respond STRICTLY in this JSON format, no other text:
-{{"verdict": "verified" or "rejected", "reason": "short explanation", "confidence": "high" or "medium" or "low"}}"""
+Weak evidence:
+- General similarity to a GenLayer tweet
+
+Scoring:
+
+Handle match: 40 points
+Tweet content match: 40 points
+Platform/UI match: 20 points
+
+Verification rules:
+
+Score >= 70 → verified = true
+Score < 70 → verified = false
+
+Return JSON only:
+
+{{
+  "verified": true,
+  "score": 0-100,
+  "evidence": [
+    "..."
+  ],
+  "reason": "..."
+}}"""
 
             result = gl.nondet.exec_prompt(prompt, images=[img_bytes])
 
@@ -166,7 +189,15 @@ Respond STRICTLY in this JSON format, no other text:
             return json.dumps(parsed, sort_keys=True)
 
         # Multi-validator consensus: all LLMs must return identical result
-        verdict_json = json.loads(gl.eq_principle.strict_eq(nondet_verify))
+        raw_verdict = json.loads(gl.eq_principle.strict_eq(nondet_verify))
+        # Map new format back to old format for storage
+        verdict = "verified" if raw_verdict.get("verified", False) else "rejected"
+        verdict_json = {
+            "verdict": verdict,
+            "reason": raw_verdict.get("reason", "No reason provided"),
+            "confidence": "high" if raw_verdict.get("score", 0) >= 80 else "medium" if raw_verdict.get("score", 0) >= 70 else "low",
+            "score": raw_verdict.get("score", 0),
+        }
 
         # Apply verdict
         task.status = verdict_json["verdict"]
