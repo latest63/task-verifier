@@ -330,7 +330,9 @@ export default function Home() {
 
   const copyText = async (text: string) => { try { await navigator.clipboard.writeText(text) } catch {} }
 
-  const allEntries = Object.entries(subs).reverse()
+  const allEntries = Object.entries(subs).sort(([, a], [, b]) =>
+    new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+  )
   const total = allEntries.length
   const verifiedN = allEntries.filter(([, s]) => s.status === 'verified').length
   const pendingN = allEntries.filter(([, s]) => s.status === 'pending').length
