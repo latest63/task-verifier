@@ -469,21 +469,17 @@ export default function Home() {
                     )}
                   </div>
 
+                  {action !== 'like' && (
                   <div>
                     <label className="block text-[13px] font-bold uppercase tracking-wide text-ink-muted mb-2">
                       Tweet URL
-                      {action === 'like' && <span className="text-brand ml-1 text-[11px]">(auto-set for Like)</span>}
-                      {action === 'retweet' && <span className="text-ink-faint ml-1 text-[11px]">(your retweet URL)</span>}
+                      <span className="text-ink-faint ml-1 text-[11px]">(your retweet URL)</span>
                     </label>
-                    {action === 'like' ? (
-                      <input value={GENLAYER_PINNED_POST} readOnly
-                        className="w-full bg-canvas-surface border border-border-light rounded-sm px-3 py-2 text-[14px] text-ink font-mono opacity-60 cursor-not-allowed" />
-                    ) : (
-                      <input value={tweetUrl} onChange={e => setTweetUrl(e.target.value)}
-                        placeholder="https://x.com/yourhandle/status/…"
-                        className="w-full bg-canvas-surface border border-border-light rounded-sm px-3 py-2 text-[14px] text-ink font-mono placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-focus/50" />
-                    )}
+                    <input value={tweetUrl} onChange={e => setTweetUrl(e.target.value)}
+                      placeholder="https://x.com/yourhandle/status/…"
+                      className="w-full bg-canvas-surface border border-border-light rounded-sm px-3 py-2 text-[14px] text-ink font-mono placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-focus/50" />
                   </div>
+                  )}
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
