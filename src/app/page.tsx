@@ -455,6 +455,11 @@ export default function Home() {
               </p>
             </div>
 
+            <div className="flex items-center gap-3 mb-8 pb-6 border-b border-border">
+              <img src="/genlayer-logo.jpeg" alt="GenLayer" className="h-8 w-auto object-contain" />
+              <span className="text-[13px] text-ink-faint font-medium">Powered by GenLayer AI consensus</span>
+            </div>
+
             <div className="space-y-6">
               {[
                 { num: '1', icon: '📸', title: 'Screenshot a post', desc: 'Find any post from @GenLayer on X and take a screenshot.' },
