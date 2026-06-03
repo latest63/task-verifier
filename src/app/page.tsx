@@ -451,17 +451,17 @@ export default function Home() {
             <div className="mb-6 sm:mb-8">
               <h1 className="text-[24px] sm:text-[30px] font-extrabold text-ink-deep leading-[1.2] tracking-[-0.75px]">GenLayer Post Verifier</h1>
               <p className="mt-2 text-[14px] sm:text-[16px] text-ink leading-[1.5] max-w-xl">
-                Upload a screenshot of any <a href="https://x.com/GenLayer" target="_blank" rel="noopener" className="font-bold text-brand hover:underline">@GenLayer</a> X/Twitter post and our AI validators will verify it&rsquo;s the real thing. Results are stored on-chain forever.
+                Take a screenshot of a <a href="https://x.com/GenLayer" target="_blank" rel="noopener" className="font-bold text-brand hover:underline">@GenLayer</a> post on X, upload it here, and our AI will check it&rsquo;s the real deal. Results live on the blockchain forever.
               </p>
             </div>
 
             <div className="space-y-6">
               {[
-                { num: '1', icon: '📸', title: 'Capture a screenshot', desc: 'Go to any post from @GenLayer on X/Twitter and take a screenshot showing the post content.' },
-                { num: '2', icon: '📤', title: 'Upload to the app', desc: 'Drop your screenshot here. The app automatically compresses it to fit GenLayer&rsquo;s block size limit.' },
-                { num: '3', icon: '🔗', title: 'Submit to the blockchain', desc: 'Connect your wallet and submit. The image bytes go directly in the transaction — no external hosting needed.' },
-                { num: '4', icon: '🤖', title: 'AI verification', desc: 'GenLayer validators cross-check the screenshot against GenLayer&rsquo;s X profile. Multiple AI models independently analyze and reach consensus.' },
-                { num: '5', icon: '✅', title: 'On-chain result', desc: 'The verdict (verified/rejected) is stored on GenLayer permanently. Check the Activity tab for your submission status.' },
+                { num: '1', icon: '📸', title: 'Screenshot a post', desc: 'Find any post from @GenLayer on X and take a screenshot.' },
+                { num: '2', icon: '📤', title: 'Upload it here', desc: 'Drop the screenshot. The app shrinks it down automatically so it fits.' },
+                { num: '3', icon: '🔗', title: 'Submit', desc: 'Connect your wallet and submit. Your screenshot goes straight to the blockchain.' },
+                { num: '4', icon: '🤖', title: 'AI checks it', desc: 'Our AI validators look at the screenshot and check if it really is a GenLayer post.' },
+                { num: '5', icon: '✅', title: 'Get the result', desc: 'The answer (verified or rejected) is stored permanently. Check the Activity tab.' },
               ].map(step => (
                 <div key={step.num} className="flex gap-4 sm:gap-5 p-4 sm:p-5 border border-border rounded-sm bg-canvas hover:bg-canvas-surface transition-colors">
                   <div className="shrink-0 w-9 h-9 flex items-center justify-center rounded-sm font-bold text-[15px] text-white"
