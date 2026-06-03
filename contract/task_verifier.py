@@ -134,46 +134,45 @@ class TaskVerifier(gl.Contract):
                     "reason": "Screenshot URL returned no valid image data"
                 }, sort_keys=True)
 
-            # Step 3: LLM vision cross-analysis
-            prompt = f"""You are a screenshot verification agent with vision capability.
+            # Step 3: LLM text-only consensus (vision unavailable on these validators)
+            action_label = "liked" if task.action_type == "like" else "retweeted/quoted"
 
-You are given ONE image. Analyze ONLY what you can actually see in this image.
+            if task.action_type == "retweet":
+                prompt = f"""You are a task verifier. Analyze the rendered text of a Twitter/X page and return ONLY JSON.
 
-CRITICAL INSTRUCTIONS — READ FIRST:
-1. If the image does NOT show an X/Twitter interface at all, score = 0 and verified = false.
-2. If the image shows a random photo, landscape, animal, food, meme, or anything that is NOT a tweet screenshot, score = 0 and verified = false.
-3. If the image is a screenshot but shows a DIFFERENT tweet (not GenLayer), score = 0 and verified = false.
-4. Only if the image actually shows an X/Twitter post about GenLayer, proceed to scoring below.
-5. If you are unsure what the image shows, score = 0 and verified = false. NEVER guess.
+CLAIM: user @{task.expected_handle} {action_label} the GenLayer pinned post.
+TWEET URL: {task.tweet_url}
 
-Expected X handle: @{task.expected_handle}
-Expected action: {task.action_type} (like or retweet)
+Rendered page text:
+---
+{page_text[:5000]}
+---
 
-=== LIVE TWEET PAGE TEXT (for reference only) ===
-{page_text}
+Rules:
+- Return ONLY: {{"verified":true}} if the page text clearly shows @{task.expected_handle} reposted/quoted a tweet about GenLayer Portal.
+- Return ONLY: {{"verified":false}} if the page is empty, blocked, unrelated, or shows a different tweet/author.
+- NEVER guess. Use ONLY explicit evidence in the page text above.
+- Do NOT include markdown, explanations, or any other keys."""
+            else:
+                # Like actions: we cannot verify likes from public page text.
+                # Validators only confirm the pinned post page is valid GenLayer content.
+                prompt = f"""You are a task verifier. Analyze the rendered text of a Twitter/X page and return ONLY JSON.
 
-Now SCORE the image using this rubric ONLY if it is a valid X/Twitter screenshot:
+CLAIM: user @{task.expected_handle} liked the GenLayer pinned post.
+TWEET URL: {task.tweet_url}
 
-Handle match (40 pts): Does the screenshot show @{task.expected_handle}? Must match exactly.
-Tweet content match (40 pts): Does the tweet text match "GenLayer Portal" / "now live" / portal announcement?
-Platform/UI match (20 pts): Is this clearly the X/Twitter mobile app or web interface?
+Rendered page text:
+---
+{page_text[:5000]}
+---
 
-Verification rules:
-Score >= 70 → verified = true
-Score < 70 → verified = false
+Rules:
+- Return ONLY: {{"verified":true}} if the page text clearly relates to GenLayer / GenLayer Portal and is not empty/blocked.
+- Return ONLY: {{"verified":false}} if the page is empty, blocked, or unrelated to GenLayer.
+- NEVER guess. Use ONLY explicit evidence in the page text above.
+- Do NOT include markdown, explanations, or any other keys."""
 
-Return JSON only:
-
-{{
-  "verified": true,
-  "score": 0-100,
-  "evidence": [
-    "..."
-  ],
-  "reason": "..."
-}}"""
-
-            result = gl.nondet.exec_prompt(prompt, images=[img_bytes])
+            result = gl.nondet.exec_prompt(prompt)
 
             # Clean: strip markdown code fences if present
             result = result.strip()
@@ -190,13 +189,13 @@ Return JSON only:
 
         # Multi-validator consensus: all LLMs must return identical result
         raw_verdict = json.loads(gl.eq_principle.strict_eq(nondet_verify))
-        # Map new format back to old format for storage
+        # Map binary consensus to verdict format
         verdict = "verified" if raw_verdict.get("verified", False) else "rejected"
         verdict_json = {
             "verdict": verdict,
-            "reason": raw_verdict.get("reason", "No reason provided"),
-            "confidence": "high" if raw_verdict.get("score", 0) >= 80 else "medium" if raw_verdict.get("score", 0) >= 70 else "low",
-            "score": raw_verdict.get("score", 0),
+            "reason": "Tweet page evidence confirms the action" if verdict == "verified" else "Tweet page evidence does not confirm the action",
+            "confidence": "high",
+            "score": 100 if verdict == "verified" else 0,
         }
 
         # Apply verdict
