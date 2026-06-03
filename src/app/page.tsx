@@ -5,7 +5,7 @@ import { useAccount, useWalletClient } from 'wagmi'
 import { useWeb3Modal } from '@web3modal/wagmi/react'
 import { defineChain } from 'viem'
 import { createClient } from 'genlayer-js'
-import { testnetBradbury } from 'genlayer-js/chains'
+import { testnetBradbury, studionet } from 'genlayer-js/chains'
 import ConnectWallet from '../../components/ConnectWallet'
 
 // ── Networks ───────────────────────────────────────────────────────
@@ -15,14 +15,6 @@ const BRADBURY = defineChain({
   nativeCurrency: { name: 'GEN', symbol: 'GEN', decimals: 18 },
   rpcUrls: { default: { http: ['https://rpc-bradbury.genlayer.com'] } },
   blockExplorers: { default: { name: 'Explorer', url: 'https://explorer-bradbury.genlayer.com' } },
-  testnet: true,
-})
-
-const STUDIO_CHAIN = defineChain({
-  id: 1337, name: 'GenLayer Studio',
-  nativeCurrency: { name: 'GEN', symbol: 'GEN', decimals: 18 },
-  rpcUrls: { default: { http: ['https://studio.genlayer.com/api'] } },
-  blockExplorers: { default: { name: 'Studio', url: '#' } },
   testnet: true,
 })
 
@@ -40,7 +32,7 @@ const NETWORKS: Record<NetworkId, {
     explorer: 'https://explorer-bradbury.genlayer.com',
   },
   studionet: {
-    label: 'Studio', color: '#6366f1', chain: STUDIO_CHAIN as any,
+    label: 'Studio', color: '#6366f1', chain: studionet as any,
     explorer: '#',
   },
 }
@@ -196,29 +188,8 @@ export default function Home() {
     if (!address || !walletClient || !compressedBytes || !contractAddr) return
     setSubmitting(true); setTxHash(null); setTaskId(null); setResult(null)
     try {
-      // Ensure wallet is on the correct chain
-      const chainIdHex = `0x${netCfg.chain.id.toString(16)}`
-      try {
-        await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: chainIdHex }] })
-      } catch (switchErr: any) {
-        if (switchErr.code === 4902) {
-          await window.ethereum.request({
-            method: 'wallet_addEthereumChain',
-            params: [{
-              chainId: chainIdHex,
-              chainName: netCfg.chain.name,
-              rpcUrls: [netCfg.chain.rpcUrls.default.http[0]],
-              nativeCurrency: netCfg.chain.nativeCurrency,
-              blockExplorerUrls: netCfg.chain.blockExplorers ? [netCfg.chain.blockExplorers.default.url] : [],
-            }],
-          })
-        }
-      }
-
       // Use genlayer-js write client with MetaMask for signing (not wagmi — GenLayer has own ABI encoding)
-      const { createClient } = await import('genlayer-js')
-      const { testnetBradbury } = await import('genlayer-js/chains')
-      const glChain = network === 'bradbury' ? testnetBradbury : { ...testnetBradbury, id: 1337, name: 'GenLayer Studio', rpcUrls: { default: { http: ['https://studio.genlayer.com/api'] } } }
+      const glChain = network === 'bradbury' ? testnetBradbury : studionet
       const glWriteClient = createClient({
         chain: glChain as any,
         account: address as `0x${string}`,
@@ -293,9 +264,7 @@ export default function Home() {
         }
       }
 
-      const { createClient } = await import('genlayer-js')
-      const { testnetBradbury } = await import('genlayer-js/chains')
-      const glChain = network === 'bradbury' ? testnetBradbury : { ...testnetBradbury, id: 1337, name: 'GenLayer Studio', rpcUrls: { default: { http: ['https://studio.genlayer.com/api'] } } }
+      const glChain = network === 'bradbury' ? testnetBradbury : studionet
       const glWriteClient = createClient({
         chain: glChain as any,
         account: address as `0x${string}`,

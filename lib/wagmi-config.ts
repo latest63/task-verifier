@@ -16,7 +16,7 @@ const bradbury = {
 } as const
 
 const studionet = {
-  id: 1337,
+  id: 61999,
   name: 'GenLayer Studio',
   nativeCurrency: { name: 'GEN', symbol: 'GEN', decimals: 18 },
   rpcUrls: {
