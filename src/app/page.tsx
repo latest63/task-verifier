@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useAccount, useWalletClient } from 'wagmi'
 import { useWeb3Modal } from '@web3modal/wagmi/react'
-import { defineChain, createPublicClient, http } from 'viem'
+import { defineChain } from 'viem'
 import { createClient } from 'genlayer-js'
 import { testnetBradbury, studionet } from 'genlayer-js/chains'
 import ConnectWallet from '../../components/ConnectWallet'
@@ -74,7 +74,7 @@ export default function Home() {
       if (network === 'bradbury') return createClient({ chain: testnetBradbury })
       // Studio: extend Bradbury chain with Studio RPC
       return createClient({
-        chain: { ...testnetBradbury, id: 1337, rpcUrls: { default: ['https://studio.genlayer.com/api'] } } as any,
+        chain: { ...testnetBradbury, rpcUrls: { default: { http: ['https://studio.genlayer.com/api'] } } } as any,
       })
     } catch (e) {
       console.error('Failed to create read client:', e)
@@ -125,8 +125,10 @@ export default function Home() {
         functionName: 'get_all',
         args: [],
       })
-      if (raw && typeof raw === 'object') setSubs(raw as unknown as Record<string, SubData>)
-    } catch (e) { console.error('fetch error:', e) } finally { setLoading(false) }
+      const data = raw && typeof raw === 'object' ? raw as unknown as Record<string, SubData> : {}
+      setSubs(data)
+      return data
+    } catch (e) { console.error('fetch error:', e); return {} } finally { setLoading(false) }
   }, [contractAddr, glClient])
 
   useEffect(() => { fetchSubs(); const i = setInterval(fetchSubs, 10000); return () => clearInterval(i) }, [fetchSubs])
@@ -228,24 +230,23 @@ export default function Home() {
       })
       setTxHash(hash as string)
 
-      // Wait for tx receipt via viem (more reliable than raw RPC polling)
-      const publicClient = createPublicClient({
-        chain: activeChain as any,
-        transport: http(),
-      })
-      const receipt = await publicClient.waitForTransactionReceipt({
-        hash: hash as `0x${string}`,
-        timeout: 120_000,
-      })
-
-      // Refresh submissions and find latest
-      await fetchSubs()
-      const entries = Object.entries(subs).filter(([, s]) => s.submitter.toLowerCase() === address.toLowerCase())
-      const latest = entries[entries.length - 1]
-      if (latest) setTaskId(latest[0])
-
+      // genlayer-js handles receipt internally (Bradbury waits, Studio returns immediately).
+      // Just poll for the new submission to appear.
       setSubmitted(true)
       setTimeout(() => setSubmitted(false), 6000)
+
+      // Poll fetchSubs up to 30s for the new submission
+      for (let i = 0; i < 15; i++) {
+        await new Promise(r => setTimeout(r, 2000))
+        const fresh = await fetchSubs()
+        const entries = Object.entries(fresh || {}).filter(([, s]) => s.submitter.toLowerCase() === address.toLowerCase())
+        if (entries.length > 0) {
+          const latest = entries[entries.length - 1]
+          if (latest) setTaskId(latest[0])
+          break
+        }
+      }
+
       setFile(null); setRawPreview(null); setCompressedPreview(null); setCompressedBlob(null); setCompressedBytes(null); setCompressionInfo(null); setCompressWarn(null)
     } catch (e: any) {
       console.error('submit error:', e)
@@ -281,23 +282,20 @@ export default function Home() {
         provider: getProvider(),
       })
 
-      const hash = await glWriteClient.writeContract({
+      await glWriteClient.writeContract({
         address: activeContractVerify as `0x${string}`,
         functionName: 'verify',
         args: [id],
         value: 0n,
       })
 
-      // Wait for receipt via viem
-      const publicClient = createPublicClient({
-        chain: activeChainVerify as any,
-        transport: http(),
-      })
-      await publicClient.waitForTransactionReceipt({
-        hash: hash as `0x${string}`,
-        timeout: 120_000,
-      })
-      await fetchSubs()
+      // genlayer-js handles receipt internally. Poll for updated status.
+      for (let i = 0; i < 10; i++) {
+        await new Promise(r => setTimeout(r, 2000))
+        const fresh = await fetchSubs()
+        const entry = (fresh || {})[id]
+        if (entry?.status !== 'pending') break
+      }
     } catch (e: any) {
       setError(e?.cause?.message || e?.shortMessage || e?.message || 'Verification failed')
     } finally { setVerifying(null) }
