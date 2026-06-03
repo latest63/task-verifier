@@ -94,8 +94,11 @@ class TaskVerifier(gl.Contract):
             if not img_bytes or len(img_bytes) < 100:
                 return json.dumps({"verified": False}, sort_keys=True)
 
-            # Step 3: Text-only consensus — validators check the pinned post page
-            prompt = f"""You are a task verifier. Analyze the rendered text of a Twitter/X page and return ONLY JSON.
+            # Step 3: LLM consensus — analyze image + page text
+            prompt = f"""You are a screenshot verification agent.
+
+You are given ONE image and the rendered text of a Twitter/X page.
+Analyze BOTH the image and the page text.
 
 CLAIM: user @{task.expected_handle} liked the GenLayer pinned post.
 PINNED POST: {PINNED_POST}
@@ -105,13 +108,20 @@ Rendered page text:
 {page_text[:5000]}
 ---
 
-Rules:
-- Return ONLY: {{"verified":true}} if the page text clearly relates to GenLayer / GenLayer Portal and is not empty/blocked.
-- Return ONLY: {{"verified":false}} if the page is empty, blocked, or unrelated to GenLayer.
-- NEVER guess. Use ONLY explicit evidence in the page text above.
-- Do NOT include markdown, explanations, or any other keys."""
+CRITICAL INSTRUCTIONS:
+1. The image MUST show an X/Twitter interface. If it shows anything else (random photo, meme, blank screen, etc.), return verified=false.
+2. The image MUST show the GenLayer pinned post about "GenLayer Portal" / "now live". If it shows a different tweet, return verified=false.
+3. The page text above is from the live tweet URL. It should mention GenLayer. If it is empty/blocked/unrelated, return verified=false.
+4. Only return verified=true if BOTH the image shows a valid GenLayer tweet screenshot AND the page text confirms GenLayer content.
+5. If you are unsure about the image content, return verified=false. NEVER guess.
 
-            result = gl.nondet.exec_prompt(prompt)
+Return ONLY JSON:
+{{"verified": true}}  if evidence confirms the claim
+{{"verified": false}} if evidence does not confirm the claim
+
+Do NOT include any other keys, explanations, or markdown."""
+
+            result = gl.nondet.exec_prompt(prompt, images=[img_bytes])
 
             # Clean: strip markdown code fences if present
             result = result.strip()
