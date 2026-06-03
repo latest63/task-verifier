@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useAccount, useWalletClient } from 'wagmi'
 import { useWeb3Modal } from '@web3modal/wagmi/react'
 import { http, defineChain } from 'viem'
@@ -8,46 +8,78 @@ import { createClient } from 'genlayer-js'
 import { testnetBradbury } from 'genlayer-js/chains'
 import ConnectWallet from '../../components/ConnectWallet'
 
-const bradbury = defineChain({
+// ── Networks ───────────────────────────────────────────────────────
+
+const BRADBURY = defineChain({
   id: 4221, name: 'GenLayer Bradbury Testnet',
   nativeCurrency: { name: 'GEN', symbol: 'GEN', decimals: 18 },
   rpcUrls: { default: { http: ['https://rpc-bradbury.genlayer.com'] } },
-  blockExplorers: { default: { name: 'Bradbury Explorer', url: 'https://explorer-bradbury.genlayer.com' } },
+  blockExplorers: { default: { name: 'Explorer', url: 'https://explorer-bradbury.genlayer.com' } },
   testnet: true,
 })
 
-// GenLayer JS client for reads (uses gen_call RPC, not eth_call)
-const glReadClient = createClient({ chain: testnetBradbury })
+const STUDIO_CHAIN = defineChain({
+  id: 1337, name: 'GenLayer Studio',
+  nativeCurrency: { name: 'GEN', symbol: 'GEN', decimals: 18 },
+  rpcUrls: { default: { http: ['https://studio.genlayer.com/api'] } },
+  testnet: true,
+})
 
-const taskAbi = [
-  { type: 'function', name: 'submit_task', inputs: [
-    { type: 'string', name: 'tweet_url' }, { type: 'string', name: 'screenshot_url' },
-    { type: 'string', name: 'expected_handle' }, { type: 'string', name: 'action_type' },
-  ], stateMutability: 'write' },
+// Read clients for each network
+const glReadBradbury = createClient({ chain: testnetBradbury })
+const glReadStudio = createClient({
+  chain: { ...testnetBradbury, id: 1337, rpcUrls: { default: ['https://studio.genlayer.com/api'] } } as any,
+})
+
+// ── ABI ────────────────────────────────────────────────────────────
+
+const abi = [
+  { type: 'function', name: 'submit', inputs: [{ type: 'bytes', name: 'img_data' }], stateMutability: 'write' },
   { type: 'function', name: 'verify', inputs: [{ type: 'string', name: 'task_id' }], stateMutability: 'write' },
-  { type: 'function', name: 'get_task', inputs: [{ type: 'string', name: 'task_id' }], stateMutability: 'view' },
-  { type: 'function', name: 'get_all_tasks', inputs: [], stateMutability: 'view' },
-  { type: 'function', name: 'get_task_count', inputs: [], stateMutability: 'view' },
-  { type: 'function', name: 'get_verified_handle', inputs: [{ type: 'string', name: 'handle' }], outputs: [{ type: 'string' }], stateMutability: 'view' },
-  { type: 'function', name: 'is_screenshot_used', inputs: [{ type: 'string', name: 'url' }], outputs: [{ type: 'bool' }], stateMutability: 'view' },
 ] as const
 
-type TaskData = { submitter: string; tweet_url: string; screenshot_url: string; expected_handle: string; action_type: string; status: string; verdict_reason: string; timestamp: string }
-type TaskMap = Record<string, TaskData>
+type NetworkId = 'bradbury' | 'studionet'
 type View = 'task' | 'dashboard' | 'submit'
 
-const ACTIONS = ['like', 'retweet'] as const
-const sc: Record<string, { label: string; style: string }> = {
-  pending:  { label: 'Pending',  style: 'border-amber-300/60 bg-amber-50 text-amber-800' },
-  verified: { label: 'Verified', style: 'border-emerald-300/60 bg-emerald-50 text-emerald-800' },
-  rejected: { label: 'Rejected', style: 'border-red-300/60 bg-red-50 text-red-800' },
+const NETWORKS: Record<NetworkId, {
+  label: string; color: string; chain: typeof BRADBURY;
+  readClient: typeof glReadBradbury; explorer: string
+}> = {
+  bradbury: {
+    label: 'Bradbury', color: '#F54E00', chain: BRADBURY,
+    readClient: glReadBradbury,
+    explorer: 'https://explorer-bradbury.genlayer.com',
+  },
+  studionet: {
+    label: 'Studio', color: '#6366f1', chain: STUDIO_CHAIN,
+    readClient: glReadStudio,
+    explorer: '#',
+  },
 }
-const fmtAddr = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`
-const actionEmoji: Record<string, string> = { like: '❤️', retweet: '🔄', reply: '💬', post: '📝' }
-const GENLAYER_PINNED_POST = 'https://x.com/GenLayer/status/2033575658165867008'
+
+type SubData = {
+  submitter: string; img_size: number;
+  status: string; verdict: string; timestamp: string
+}
+
+const fmtAddr = (a: string) => a ? `${a.slice(0, 6)}…${a.slice(-4)}` : '—'
+const fmtBytes = (b: number) =>
+  b < 1024 ? `${b}B` : b < 10240 ? `${(b / 1024).toFixed(1)}KB` : `${Math.round(b / 1024)}KB`
 
 export default function Home() {
-  const contractAddr = process.env.NEXT_PUBLIC_VERIFIER_CONTRACT || ''
+  const contractBradbury = process.env.NEXT_PUBLIC_VERIFIER_CONTRACT || ''
+  const contractStudio = process.env.NEXT_PUBLIC_VERIFIER_CONTRACT_STUDIO || ''
+  const hasBradbury = !!contractBradbury
+  const hasStudio = !!contractStudio
+
+  const [network, setNetwork] = useState<NetworkId>(
+    hasBradbury ? 'bradbury' : hasStudio ? 'studionet' : 'bradbury'
+  )
+
+  const contractAddr = network === 'bradbury' ? contractBradbury : contractStudio
+  const netCfg = NETWORKS[network]
+  const glClient = netCfg.readClient
+
   const { address, isConnected } = useAccount()
   const { data: walletClient } = useWalletClient()
   const { open } = useWeb3Modal()
@@ -55,118 +87,221 @@ export default function Home() {
   const [view, setView] = useState<View>('task')
 
   // Dashboard
-  const [tasks, setTasks] = useState<TaskMap>({})
+  const [subs, setSubs] = useState<Record<string, SubData>>({})
   const [loading, setLoading] = useState(false)
   const [verifying, setVerifying] = useState<string | null>(null)
 
   // Submit
-  const [screenshot, setScreenshot] = useState<File | null>(null)
-  const [preview, setPreview] = useState<string | null>(null)
-  const [tweetUrl, setTweetUrl] = useState('')
-  const [handle, setHandle] = useState('')
-  const [action, setAction] = useState<string>('like')
+  const [file, setFile] = useState<File | null>(null)
+  const [rawPreview, setRawPreview] = useState<string | null>(null)
+  const [compressedPreview, setCompressedPreview] = useState<string | null>(null)
+  const [compressedBlob, setCompressedBlob] = useState<Blob | null>(null)
+  const [compressedBytes, setCompressedBytes] = useState<Uint8Array | null>(null)
+  const [compressionInfo, setCompressionInfo] = useState<{
+    originalSize: number; compressedSize: number; ratio: number; width: number; height: number
+  } | null>(null)
+  const [compressWarn, setCompressWarn] = useState<string | null>(null)
+
+  const [txHash, setTxHash] = useState<string | null>(null)
+  const [taskId, setTaskId] = useState<string | null>(null)
+  const [result, setResult] = useState<{ status: string; reason: string } | null>(null)
   const [submitting, setSubmitting] = useState(false)
-  const [uploading, setUploading] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+
   useEffect(() => { if (error) { const t = setTimeout(() => setError(null), 6000); return () => clearTimeout(t) } }, [error])
 
-  const fetchTasks = useCallback(async () => {
-    if (!contractAddr) return
+  // ── Fetch submissions ────────────────────────────────────────────
+
+  const fetchSubs = useCallback(async () => {
+    if (!contractAddr || !glClient) return
     setLoading(true)
     try {
-      const raw = await glReadClient.readContract({
+      const raw = await glClient.readContract({
         address: contractAddr as `0x${string}`,
-        functionName: 'get_all_tasks',
+        functionName: 'get_all',
         args: [],
       })
-      if (raw && typeof raw === 'object') setTasks(raw as unknown as TaskMap)
-      setError(null)
-    } catch (e) { console.error(e) } finally { setLoading(false) }
-  }, [contractAddr])
+      if (raw && typeof raw === 'object') setSubs(raw as unknown as Record<string, SubData>)
+    } catch (e) { console.error('fetch error:', e) } finally { setLoading(false) }
+  }, [contractAddr, glClient])
 
-  useEffect(() => { fetchTasks(); const i = setInterval(fetchTasks, 8000); return () => clearInterval(i) }, [fetchTasks])
+  useEffect(() => { fetchSubs(); const i = setInterval(fetchSubs, 10000); return () => clearInterval(i) }, [fetchSubs])
 
-  const waitForTx = async (hash: string) => {
-    // Poll via genlayer-js compatible read until finalized
-    for (let i = 0; i < 30; i++) {
-      await new Promise(r => setTimeout(r, 2000))
-      try {
-        const receipt = await fetch('https://rpc-bradbury.genlayer.com', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            jsonrpc: '2.0',
-            method: 'eth_getTransactionReceipt',
-            params: [hash],
-            id: 1,
-          }),
-        }).then(r => r.json())
-        if (receipt?.result) return receipt.result
-      } catch {}
+  // ── Image compression ────────────────────────────────────────────
+
+  const compressFile = useCallback(async (f: File) => {
+    const originalSize = f.size
+
+    // Load image
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const i = new Image()
+      i.onload = () => resolve(i)
+      i.onerror = () => reject(new Error('Failed to load image'))
+      i.src = URL.createObjectURL(f)
+    })
+
+    let w = img.naturalWidth
+    let h = img.naturalHeight
+    const MAX = 640
+    if (w > MAX || h > MAX) {
+      if (w > h) { h = Math.round(h * MAX / w); w = MAX }
+      else { w = Math.round(w * MAX / h); h = MAX }
     }
-  }
 
-  const verifyOne = async (taskId: string) => {
-    if (!address || !walletClient) return
-    setVerifying(taskId)
+    // Try different qualities to get under 50KB
+    let quality = 0.7
+    let blob: Blob | null = null
+    let attempts = 0
+    const canvas = document.createElement('canvas')
+    canvas.width = w; canvas.height = h
+    const ctx = canvas.getContext('2d')!
+    ctx.drawImage(img, 0, 0, w, h)
+
+    while (attempts < 10) {
+      blob = await new Promise<Blob | null>(r => canvas.toBlob(b => r(b), 'image/jpeg', quality))
+      if (!blob || blob.size <= 48000) break
+      quality -= 0.1
+      attempts++
+    }
+
+    if (!blob) { setCompressWarn('Compression failed'); return }
+
+    const finalSize = blob.size
+    setCompressionInfo({
+      originalSize,
+      compressedSize: finalSize,
+      ratio: Math.round((1 - finalSize / originalSize) * 100),
+      width: w,
+      height: h,
+    })
+
+    if (finalSize > 50000) {
+      setCompressWarn(`⚠ Image is ${fmtBytes(finalSize)} — exceeds 50KB limit. Try a smaller screenshot.`)
+    } else {
+      setCompressWarn(null)
+    }
+
+    const buf = await blob.arrayBuffer()
+    setCompressedBlob(blob)
+    setCompressedBytes(new Uint8Array(buf))
+    setCompressedPreview(URL.createObjectURL(blob))
+  }, [])
+
+  // ── Submit ───────────────────────────────────────────────────────
+
+  const submitProof = async () => {
+    if (!address || !walletClient || !compressedBytes || !contractAddr) return
+    setSubmitting(true); setTxHash(null); setTaskId(null); setResult(null)
     try {
       const hash = await walletClient.writeContract({
-        account: address, address: contractAddr as `0x${string}`, abi: taskAbi,
-        functionName: 'verify', args: [taskId], chain: bradbury,
+        account: address,
+        address: contractAddr as `0x${string}`,
+        abi,
+        functionName: 'submit',
+        args: [compressedBytes],
+        chain: netCfg.chain as any,
       } as any)
-      await waitForTx(hash); await fetchTasks()
-    } catch (e: any) { setError(e?.message ?? 'Verification failed') } finally { setVerifying(null) }
+      setTxHash(hash)
+
+      // Wait for tx receipt
+      let receipt: any = null
+      for (let i = 0; i < 60; i++) {
+        await new Promise(r => setTimeout(r, 2000))
+        try {
+          const rpc = netCfg.chain.rpcUrls.default.http[0]
+          const resp = await fetch(rpc, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              jsonrpc: '2.0', method: 'eth_getTransactionReceipt',
+              params: [hash], id: 1,
+            }),
+          }).then(r => r.json())
+          if (resp?.result) { receipt = resp.result; break }
+        } catch { /* retry */ }
+      }
+
+      if (!receipt) throw new Error('Transaction not confirmed after 2 min')
+
+      // Decode task_id from logs or use contract state
+      await fetchSubs()
+      // Find latest submission from this address
+      const entries = Object.entries(subs).filter(([, s]) => s.submitter.toLowerCase() === address.toLowerCase())
+      const latest = entries[entries.length - 1]
+      if (latest) setTaskId(latest[0])
+
+      setSubmitted(true)
+      setTimeout(() => setSubmitted(false), 6000)
+      setFile(null); setRawPreview(null); setCompressedPreview(null); setCompressedBlob(null); setCompressedBytes(null); setCompressionInfo(null); setCompressWarn(null)
+    } catch (e: any) {
+      console.error('submit error:', e)
+      setError(e?.cause?.message || e?.shortMessage || e?.message || 'Submission failed')
+    } finally { setSubmitting(false) }
+  }
+
+  // ── Verify ───────────────────────────────────────────────────────
+
+  const verifyOne = async (id: string) => {
+    if (!address || !walletClient) return
+    setVerifying(id)
+    try {
+      const hash = await walletClient.writeContract({
+        account: address, address: contractAddr as `0x${string}`, abi: abi,
+        functionName: 'verify', args: [id], chain: netCfg.chain as any,
+      } as any)
+
+      // Wait
+      for (let i = 0; i < 60; i++) {
+        await new Promise(r => setTimeout(r, 2000))
+        try {
+          const rpc = netCfg.chain.rpcUrls.default.http[0]
+          const resp = await fetch(rpc, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              jsonrpc: '2.0', method: 'eth_getTransactionReceipt',
+              params: [hash], id: 1,
+            }),
+          }).then(r => r.json())
+          if (resp?.result) break
+        } catch { /* retry */ }
+      }
+      await fetchSubs()
+    } catch (e: any) {
+      setError(e?.cause?.message || e?.shortMessage || e?.message || 'Verification failed')
+    } finally { setVerifying(null) }
   }
 
   const verifyAll = async () => {
-    for (const [id] of Object.entries(tasks).filter(([, t]) => t.status === 'pending')) await verifyOne(id)
+    for (const [id, s] of Object.entries(subs).filter(([, s]) => s.status === 'pending')) {
+      await verifyOne(id)
+    }
   }
 
-  const submitProof = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!address || !walletClient || !screenshot) return
-    setSubmitting(true)
-    try {
-      setUploading(true)
-      if (screenshot.size > 10 * 1024 * 1024) throw new Error('Screenshot too large (max 10MB)')
-      const fd = new FormData(); fd.append('file', screenshot)
-      const controller = new AbortController()
-      const to = setTimeout(() => controller.abort(new DOMException('Upload timed out — file upload took too long', 'TimeoutError')), 60000)
-      const up = await fetch('/api/upload', { method: 'POST', body: fd, signal: controller.signal })
-      clearTimeout(to)
-      if (!up.ok) { const err = await up.json(); throw new Error(err.error || 'Upload failed') }
-      const { url } = await up.json(); setUploading(false)
+  // ── Helpers ──────────────────────────────────────────────────────
 
-      // Use pinned post for like, manual URL for retweet
-      const finalUrl = action === 'like' ? GENLAYER_PINNED_POST : tweetUrl
-
-      const hash = await walletClient.writeContract({
-        account: address, address: contractAddr as `0x${string}`, abi: taskAbi,
-        functionName: 'submit_task', args: [finalUrl, url, handle, action], chain: bradbury,
-      } as any)
-      await waitForTx(hash)
-      setScreenshot(null); setPreview(null); setTweetUrl(''); setHandle(''); setAction('like')
-      setSubmitted(true); setTimeout(() => setSubmitted(false), 5000)
-    } catch (e: any) { console.error('submit error:', e); setError(e?.message ?? 'Submission failed') } finally { setSubmitting(false); setUploading(false) }
+  const handleFile = (f: File | undefined) => {
+    setError(null); setCompressWarn(null); setCompressionInfo(null)
+    setCompressedBlob(null); setCompressedBytes(null)
+    setCompressedPreview(null); setTaskId(null); setTxHash(null); setResult(null)
+    if (!f) { setFile(null); setRawPreview(null); return }
+    if (!f.type.startsWith('image/')) { setError('Please select an image file'); return }
+    if (f.size > 20 * 1024 * 1024) { setError('File too large (max 20MB)'); return }
+    setFile(f)
+    setRawPreview(URL.createObjectURL(f))
+    compressFile(f)
   }
-  const handleFile = (file: File | undefined) => { if (!file) { setScreenshot(null); setPreview(null); return }; setScreenshot(file); setPreview(URL.createObjectURL(file)) }
 
-  const total = Object.keys(tasks).length
-  const verifiedN = Object.values(tasks).filter(t => t.status === 'verified').length
-  const pendingN = Object.values(tasks).filter(t => t.status === 'pending').length
-  const taskList = Object.entries(tasks).reverse()
+  const copyText = async (text: string) => { try { await navigator.clipboard.writeText(text) } catch {} }
 
-  // Leaderboard
-  const leaderboard = Object.values(tasks)
-    .filter(t => t.status === 'verified')
-    .reduce((acc: Record<string, { addr: string; count: number; handle: string }>, t) => {
-      const key = t.submitter
-      if (!acc[key]) acc[key] = { addr: key, count: 0, handle: t.expected_handle }
-      acc[key].count++
-      return acc
-    }, {})
-  const ranked = Object.values(leaderboard).sort((a, b) => b.count - a.count).slice(0, 5)
+  const allEntries = Object.entries(subs).reverse()
+  const total = allEntries.length
+  const verifiedN = allEntries.filter(([, s]) => s.status === 'verified').length
+  const pendingN = allEntries.filter(([, s]) => s.status === 'pending').length
+  const rejectedN = allEntries.filter(([, s]) => s.status === 'rejected').length
+
+  const viewAbbr: Record<View, string> = { task: 'Task', dashboard: 'Activity', submit: 'Submit' }
 
   return (
     <main className="min-h-screen font-sans bg-canvas">
@@ -178,31 +313,61 @@ export default function Home() {
           </div>
 
           <div className="flex bg-canvas-surface rounded-sm border border-border p-0.5 shrink-0">
-              {(['task', 'dashboard', 'submit'] as const).map(v => (
-                <button key={v} onClick={() => setView(v)}
-                  className={`px-2.5 sm:px-4 py-1 text-[12px] sm:text-[14px] font-semibold rounded-sm transition-colors ${
-                    view === v ? 'bg-brand-dark text-white' : 'text-ink-muted hover:text-brand'
-                  }`}>
-                  {v === 'task' ? 'Task' : v === 'dashboard' ? 'Activity' : 'Submit'}
-                </button>
-              ))}
-            </div>
+            {(['task', 'dashboard', 'submit'] as const).map(v => (
+              <button key={v} onClick={() => setView(v)}
+                className={`px-2.5 sm:px-4 py-1 text-[12px] sm:text-[14px] font-semibold rounded-sm transition-colors ${
+                  view === v ? 'bg-brand-dark text-white' : 'text-ink-muted hover:text-brand'
+                }`}>
+                {viewAbbr[v]}
+              </button>
+            ))}
+          </div>
 
           <ConnectWallet />
         </div>
       </header>
 
       <div className="max-w-5xl mx-auto px-3 sm:px-6 py-8 sm:py-12 md:py-16">
+
+        {/* ── Network selector ── */}
+        {(hasBradbury || hasStudio) && (
+          <div className="mb-8 flex items-center gap-3 flex-wrap">
+            {hasBradbury && (
+              <button onClick={() => setNetwork('bradbury')}
+                className={`px-3 py-1.5 text-[12px] font-bold rounded-sm border transition-all ${
+                  network === 'bradbury'
+                    ? 'border-[#F54E00] bg-[#F54E00]/10 text-[#F54E00]'
+                    : 'border-border text-ink-faint hover:text-ink-muted'
+                }`}>
+                ⚡ Bradbury {contractBradbury.slice(0, 6)}…{contractBradbury.slice(-4)}
+              </button>
+            )}
+            {hasStudio && (
+              <button onClick={() => setNetwork('studionet')}
+                className={`px-3 py-1.5 text-[12px] font-bold rounded-sm border transition-all ${
+                  network === 'studionet'
+                    ? 'border-indigo-500 bg-indigo-50 text-indigo-600'
+                    : 'border-border text-ink-faint hover:text-ink-muted'
+                }`}>
+                🧪 Studio {contractStudio.slice(0, 6)}…{contractStudio.slice(-4)}
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* ── Missing contract banner ── */}
         {!contractAddr && view !== 'task' && (
           <div className="py-20 text-center border border-border rounded-sm bg-canvas">
-            <p className="text-[16px] font-semibold text-ink-muted mb-1.5">Contract not configured</p>
+            <p className="text-[16px] font-semibold text-ink-muted mb-1.5">No contract configured</p>
             <p className="text-[14px] text-ink-faint max-w-md mx-auto leading-[1.5]">
-              Set <code className="text-[13px] bg-canvas-surface px-1.5 py-0.5 rounded-sm font-mono text-ink">NEXT_PUBLIC_VERIFIER_CONTRACT</code> in your environment variables, then redeploy.
+              Set <code className="text-[13px] bg-canvas-surface px-1.5 py-0.5 rounded-sm font-mono text-ink">NEXT_PUBLIC_VERIFIER_CONTRACT</code> and/or<br />
+              <code className="text-[13px] bg-canvas-surface px-1.5 py-0.5 rounded-sm font-mono text-ink">NEXT_PUBLIC_VERIFIER_CONTRACT_STUDIO</code>
+              {' '}in your environment variables.
             </p>
           </div>
         )}
 
-        {/* Error banner */}
+        {/* ── Error banner ── */}
         {error && (
           <div className="mb-6 p-3 sm:p-4 border border-red-300/70 bg-red-50 rounded-sm flex items-start justify-between gap-2">
             <div className="flex items-start gap-2.5">
@@ -213,60 +378,23 @@ export default function Home() {
           </div>
         )}
 
-        {/* ═══ TASK INFO ═══════════════════════════════════ */}
+        {/* ════════ TASK INFO ════════ */}
         {view === 'task' && (
           <>
             <div className="mb-6 sm:mb-8">
-              <h1 className="text-[24px] sm:text-[30px] font-extrabold text-ink-deep leading-[1.2] tracking-[-0.75px]">GenLayer Community Tasks</h1>
+              <h1 className="text-[24px] sm:text-[30px] font-extrabold text-ink-deep leading-[1.2] tracking-[-0.75px]">GenLayer Post Verifier</h1>
               <p className="mt-2 text-[14px] sm:text-[16px] text-ink leading-[1.5] max-w-xl">
-                Support the <a href="https://x.com/GenLayer" target="_blank" rel="noopener" className="font-bold text-brand hover:underline">@GenLayer</a> community by engaging with our pinned post. Complete the actions below, submit proof, and get verified by GenLayer AI consensus.
+                Upload a screenshot of any <a href="https://x.com/GenLayer" target="_blank" rel="noopener" className="font-bold text-brand hover:underline">@GenLayer</a> X/Twitter post and our AI validators will verify it&rsquo;s the real thing. Results are stored on-chain forever.
               </p>
-            </div>
-
-            {/* Pinned post card */}
-            <div className="mb-8 p-4 sm:p-5 border-2 border-brand/20 rounded-sm bg-orange-50/50">
-              <div className="flex items-start gap-3">
-                <img src="/genlayer-logo.jpeg" alt="GenLayer" className="shrink-0 w-10 h-10 rounded-full object-cover" />
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[14px] font-bold text-ink-deep">GenLayer</span>
-                    <span className="text-[12px] text-ink-faint">@GenLayer · Pinned</span>
-                  </div>
-                  <p className="text-[13px] sm:text-[14px] text-ink leading-[1.6] mb-2">
-                    The future of AI-powered consensus is here. Like, Retweet, and follow to stay updated.
-                  </p>
-                  <a href={GENLAYER_PINNED_POST} target="_blank" rel="noopener"
-                    className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-brand hover:underline">
-                    🔗 View post on X
-                  </a>
-                </div>
-              </div>
-            </div>
-
-            <h2 className="text-[16px] sm:text-[18px] font-bold text-ink-deep mb-4">Steps to earn</h2>
-
-            {/* Wallet proof note */}
-            <div className="mb-6 p-3 sm:p-4 bg-canvas-surface border border-border rounded-sm">
-              <div className="flex items-start gap-2.5">
-                <span className="text-lg shrink-0">🛡️</span>
-                <div>
-                  <p className="text-[13px] sm:text-[14px] font-semibold text-ink-deep">Prove you own your X account</p>
-                  <p className="text-[12px] sm:text-[13px] text-ink leading-[1.5] mt-0.5">
-                    Before submitting, reply to the pinned post with your wallet address from the Submit tab. The AI checks the reply matches your handle — only the real account owner can reply from that handle.
-                  </p>
-                </div>
-              </div>
             </div>
 
             <div className="space-y-6">
               {[
-                { num: '1', icon: '❤️', title: 'Like the pinned post', desc: 'Go to the GenLayer pinned post on X and click the Like button. This shows community support.' },
-                { num: '2', icon: '🔄', title: 'Retweet to your followers', desc: 'Retweet the pinned post to share it with your audience. The more reach, the stronger the community.' },
-                { num: '3', icon: '🛡️', title: 'Reply with your wallet address', desc: 'Reply to the pinned post with your wallet address (copy it from the Submit tab). This proves you own the X account — only the real account holder can post from that handle.' },
-                { num: '4', icon: '📸', title: 'Capture your proof', desc: 'Take a screenshot showing your Like or Retweet on the pinned post. Make sure your handle and the interaction are clearly visible.' },
-                { num: '5', icon: '🔗', title: 'Submit with your X handle', desc: 'Enter your X handle, upload the screenshot, and submit. For Like the URL is auto-set. For Retweet, paste your unique retweet URL.' },
-                { num: '6', icon: '🤖', title: 'AI verification', desc: 'GenLayer validators cross-check your screenshot against the live post AND verify the reply proves you own the handle. Multiple AI models independently confirm.' },
-                { num: '7', icon: '🏆', title: 'Get verified & climb', desc: 'If genuine, your task is marked Verified. Each verified task earns you a spot on the community leaderboard.' },
+                { num: '1', icon: '📸', title: 'Capture a screenshot', desc: 'Go to any post from @GenLayer on X/Twitter and take a screenshot showing the post content.' },
+                { num: '2', icon: '📤', title: 'Upload to the app', desc: 'Drop your screenshot here. The app automatically compresses it to fit GenLayer&rsquo;s block size limit.' },
+                { num: '3', icon: '🔗', title: 'Submit to the blockchain', desc: 'Connect your wallet and submit. The image bytes go directly in the transaction — no external hosting needed.' },
+                { num: '4', icon: '🤖', title: 'AI verification', desc: 'GenLayer validators cross-check the screenshot against GenLayer&rsquo;s X profile. Multiple AI models independently analyze and reach consensus.' },
+                { num: '5', icon: '✅', title: 'On-chain result', desc: 'The verdict (verified/rejected) is stored on GenLayer permanently. Check the Activity tab for your submission status.' },
               ].map(step => (
                 <div key={step.num} className="flex gap-4 sm:gap-5 p-4 sm:p-5 border border-border rounded-sm bg-canvas hover:bg-canvas-surface transition-colors">
                   <div className="shrink-0 w-9 h-9 flex items-center justify-center rounded-sm font-bold text-[15px] text-white"
@@ -286,76 +414,49 @@ export default function Home() {
           </>
         )}
 
-        {/* ═══ DASHBOARD ═══════════════════════════════════ */}
+        {/* ════════ DASHBOARD ════════ */}
         {contractAddr && view === 'dashboard' && (
           <>
-            {/* Hero */}
             <div className="mb-6 sm:mb-8">
-              <h1 className="text-[24px] sm:text-[30px] font-extrabold text-ink-deep leading-[1.2] tracking-[-0.75px]">Community Activity</h1>
+              <h1 className="text-[24px] sm:text-[30px] font-extrabold text-ink-deep leading-[1.2] tracking-[-0.75px]">Activity</h1>
               <p className="mt-2 text-[14px] sm:text-[16px] text-ink leading-[1.5] max-w-xl">
-                AI-verified community contributions. Complete tasks, submit proof, and earn your spot on the leaderboard.
+                All submissions verified by GenLayer AI consensus.
               </p>
             </div>
 
             {/* Stats */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-8">
               <div className="p-2.5 sm:p-4 border border-border rounded-sm bg-canvas text-center">
-                <div className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-ink-faint mb-1">Tasks</div>
+                <div className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-ink-faint mb-1">Total</div>
                 <div className="text-[22px] sm:text-[28px] font-bold text-ink-deep leading-tight">{total}</div>
               </div>
               <div className="p-2.5 sm:p-4 border border-emerald-200 rounded-sm bg-emerald-50/50 text-center">
                 <div className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-emerald-600 mb-1">Verified ✓</div>
                 <div className="text-[22px] sm:text-[28px] font-bold text-emerald-700 leading-tight">{verifiedN}</div>
               </div>
-              <div className="col-span-2 p-2.5 sm:p-4 border border-brand/20 rounded-sm bg-orange-50/40 flex flex-col sm:flex-row items-center justify-between gap-2">
-                <div>
-                  <div className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-ink-faint mb-1">Ready to earn?</div>
-                  <div className="text-[13px] sm:text-[14px] font-semibold text-ink leading-[1.4]">Like & Retweet the GenLayer pinned post</div>
-                </div>
-                <button onClick={() => setView('submit')}
-                  className="shrink-0 h-9 px-4 sm:px-6 rounded-md text-[12px] sm:text-[13px] font-semibold text-white transition-all"
-                  style={{ backgroundColor: '#F54E00', border: 'none', cursor: 'pointer', boxShadow: '0 1px 4px rgba(245,78,0,0.25)' }}>
-                  Submit proof →
-                </button>
+              <div className="p-2.5 sm:p-4 border border-amber-200 rounded-sm bg-amber-50/50 text-center">
+                <div className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-amber-600 mb-1">Pending</div>
+                <div className="text-[22px] sm:text-[28px] font-bold text-amber-700 leading-tight">{pendingN}</div>
+              </div>
+              <div className="p-2.5 sm:p-4 border border-red-200 rounded-sm bg-red-50/50 text-center">
+                <div className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-red-600 mb-1">Rejected</div>
+                <div className="text-[22px] sm:text-[28px] font-bold text-red-700 leading-tight">{rejectedN}</div>
               </div>
             </div>
 
-            {/* Leaderboard */}
-            {ranked.length > 0 && (
-              <section className="mb-8">
-                <h2 className="text-[14px] sm:text-[16px] font-bold text-ink-deep mb-3 flex items-center gap-2">
-                  🏆 Top Contributors
-                </h2>
-                <div className="border border-border rounded-sm bg-canvas overflow-hidden">
-                  {ranked.map((p, i) => (
-                    <div key={p.addr} className={`flex items-center justify-between px-3 sm:px-4 py-2.5 ${i < ranked.length - 1 ? 'border-b border-border' : ''}`}>
-                      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                        <span className={`text-[13px] sm:text-[14px] font-bold w-5 sm:w-6 text-center shrink-0 ${i === 0 ? 'text-brand' : i === 1 ? 'text-ink-muted' : i === 2 ? 'text-ink-faint' : 'text-ink-faint/50'}`}>
-                          {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`}
-                        </span>
-                        <span className="text-[13px] sm:text-[14px] font-semibold text-ink-deep truncate">@{p.handle}</span>
-                        <span className="hidden sm:inline text-[11px] text-ink-faint font-mono truncate">{fmtAddr(p.addr)}</span>
-                      </div>
-                      <span className="text-[12px] sm:text-[13px] font-bold text-brand shrink-0">{p.count} verified</span>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* Admin verify */}
+            {/* Verify all */}
             {pendingN > 0 && isConnected && (
-              <button onClick={verifyAll}
-                className="mb-6 px-5 py-2 bg-brand-dark hover:opacity-70 text-white text-[14px] font-semibold rounded-sm transition-all">
-                Verify all pending ({pendingN})
+              <button onClick={verifyAll} disabled={!!verifying}
+                className="mb-6 px-5 py-2 bg-brand-dark hover:opacity-70 disabled:opacity-40 text-white text-[14px] font-semibold rounded-sm transition-all">
+                {verifying ? 'Verifying…' : `Verify all pending (${pendingN})`}
               </button>
             )}
 
             {/* Activity Feed */}
             <section>
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-[16px] sm:text-[18px] font-bold text-ink-deep">Recent Activity</h2>
-                <button onClick={fetchTasks} disabled={loading}
+                <h2 className="text-[16px] sm:text-[18px] font-bold text-ink-deep">Recent Submissions</h2>
+                <button onClick={fetchSubs} disabled={loading}
                   className="text-[13px] font-semibold text-ink-muted hover:text-brand transition-colors">
                   {loading ? 'Refreshing…' : 'Refresh'}
                 </button>
@@ -363,10 +464,10 @@ export default function Home() {
 
               {total === 0 ? (
                 <div className="py-12 sm:py-16 text-center border border-border rounded-sm bg-canvas">
-                  <div className="text-3xl mb-3">🚀</div>
-                  <p className="text-[15px] sm:text-[16px] font-semibold text-ink-muted mb-1">No community activity yet</p>
+                  <div className="text-3xl mb-3">📸</div>
+                  <p className="text-[15px] sm:text-[16px] font-semibold text-ink-muted mb-1">No submissions yet</p>
                   <p className="text-[13px] sm:text-[14px] text-ink-faint max-w-sm mx-auto leading-[1.5] px-3">
-                    Be the first to Like & Retweet the GenLayer pinned post and submit your proof.
+                    Be the first to upload a GenLayer post screenshot for verification.
                   </p>
                   {!isConnected && (
                     <button onClick={() => open()}
@@ -378,32 +479,40 @@ export default function Home() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {taskList.map(([id, task]) => {
-                    const cfg = sc[task.status] ?? sc.pending
-                    const emoji = actionEmoji[task.action_type] || '📋'
-                    const isVerified = task.status === 'verified'
+                  {allEntries.map(([id, s]) => {
+                    const isVer = s.status === 'verified'
+                    const isRej = s.status === 'rejected'
+                    const isPen = s.status === 'pending'
+                    const borderCls = isVer ? 'border-emerald-200 bg-emerald-50/30'
+                      : isRej ? 'border-red-200 bg-red-50/30'
+                      : 'border-border'
+                    const badgeCls = isVer
+                      ? 'border-emerald-300/60 bg-emerald-50 text-emerald-800'
+                      : isRej
+                      ? 'border-red-300/60 bg-red-50 text-red-800'
+                      : 'border-amber-300/60 bg-amber-50 text-amber-800'
+                    const badgeLabel = isVer ? '✓ Verified' : isRej ? '✗ Rejected' : 'Pending'
                     return (
-                      <article key={id} className={`p-3 sm:p-4 border rounded-sm bg-canvas group transition-colors ${isVerified ? 'border-emerald-200 bg-emerald-50/30' : 'border-border'}`}>
+                      <article key={id} className={`p-3 sm:p-4 border rounded-sm bg-canvas group transition-colors ${borderCls}`}>
                         <div className="flex flex-col sm:flex-row sm:items-start gap-2 sm:gap-3">
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
-                              <span className={`text-[10px] sm:text-[11px] font-semibold px-2 py-0.5 rounded-sm border ${cfg.style}`}>
-                                {isVerified ? '✓ Verified' : cfg.label}
+                              <span className={`text-[10px] sm:text-[11px] font-semibold px-2 py-0.5 rounded-sm border ${badgeCls}`}>
+                                {badgeLabel}
                               </span>
                               <span className="text-[10px] sm:text-[11px] font-semibold text-ink-faint font-mono truncate max-w-[120px] sm:max-w-none">{id}</span>
+                              <span className="text-[10px] text-ink-faint font-mono">{fmtBytes(s.img_size)}</span>
                             </div>
-                            <p className="text-[14px] sm:text-[15px] text-ink leading-[1.5]">
-                              {emoji} <span className="font-bold text-ink-deep">@{task.expected_handle}</span>
-                              <span className="text-ink-muted"> — {task.action_type}d a tweet</span>
+                            <p className="text-[11px] sm:text-[12px] text-ink-faint mt-0.5 font-mono">
+                              submitted by {fmtAddr(s.submitter)} · {new Date(s.timestamp).toLocaleString()}
                             </p>
-                            <p className="text-[11px] sm:text-[12px] text-ink-faint mt-0.5 font-mono">submitted by {fmtAddr(task.submitter)}</p>
-                            {task.verdict_reason && (
-                              <p className={`text-[12px] sm:text-[13px] italic mt-2 leading-[1.5] ${isVerified ? 'text-emerald-700' : 'text-ink-muted'}`}>
-                                &ldquo;{task.verdict_reason}&rdquo;
+                            {s.verdict && (
+                              <p className={`text-[12px] sm:text-[13px] italic mt-2 leading-[1.5] ${isVer ? 'text-emerald-700' : 'text-ink-muted'}`}>
+                                &ldquo;{s.verdict}&rdquo;
                               </p>
                             )}
                           </div>
-                          {task.status === 'pending' && (
+                          {isPen && (
                             <button onClick={() => verifyOne(id)} disabled={verifying === id}
                               className="sm:shrink-0 w-full sm:w-auto px-3 py-1.5 bg-canvas-surface hover:bg-canvas-raised disabled:opacity-40 border border-border rounded-sm text-[12px] font-semibold text-ink-muted hover:text-brand transition-colors text-center">
                               {verifying === id ? 'Verifying…' : 'Verify'}
@@ -419,107 +528,163 @@ export default function Home() {
           </>
         )}
 
-        {/* ═══ SUBMIT ════════════════════════════════════ */}
+        {/* ════════ SUBMIT ════════ */}
         {contractAddr && view === 'submit' && (
           <>
             <div className="mb-6 sm:mb-10">
-              <h1 className="text-[24px] sm:text-[30px] font-extrabold text-ink-deep leading-[1.2] tracking-[-0.75px]">Submit proof</h1>
+              <h1 className="text-[24px] sm:text-[30px] font-extrabold text-ink-deep leading-[1.2] tracking-[-0.75px]">Verify a GenLayer Post</h1>
               <p className="mt-2 text-[14px] sm:text-[16px] text-ink leading-[1.5] max-w-xl">
-                Liked or retweeted the <a href={GENLAYER_PINNED_POST} target="_blank" rel="noopener" className="font-bold text-brand hover:underline">GenLayer pinned post</a>? Upload your screenshot and submit. GenLayer AI will verify your proof on-chain.
+                Upload a screenshot of a <a href="https://x.com/GenLayer" target="_blank" rel="noopener" className="font-bold text-brand hover:underline">@GenLayer</a> post. The app auto-compresses it and submits to GenLayer AI for on-chain verification.
               </p>
+              <div className="mt-2 flex items-center gap-2 text-[11px] text-ink-faint font-mono">
+                <span className={`inline-block w-2 h-2 rounded-full ${network === 'bradbury' ? 'bg-[#F54E00]' : 'bg-indigo-500'}`} />
+                {netCfg.label} · {contractAddr.slice(0, 10)}…{contractAddr.slice(-6)}
+              </div>
             </div>
 
             {submitted && (
               <div className="mb-6 p-4 border border-emerald-300/60 bg-emerald-50 rounded-sm">
-                <p className="text-[14px] font-semibold text-emerald-800">✓ Submitted! Your proof is now pending verification.</p>
+                <p className="text-[14px] font-semibold text-emerald-800">✓ Submitted! Your screenshot is pending AI verification.</p>
               </div>
             )}
 
             {!isConnected ? (
-              <button
-                onClick={() => open()}
-                className="w-full py-12 sm:py-16 text-center border border-border rounded-sm bg-canvas hover:bg-canvas-surface transition-colors cursor-pointer"
-              >
+              <button onClick={() => open()}
+                className="w-full py-12 sm:py-16 text-center border border-border rounded-sm bg-canvas hover:bg-canvas-surface transition-colors cursor-pointer">
                 <p className="text-[15px] sm:text-[16px] font-semibold text-ink-muted mb-1">Connect your wallet</p>
-                <p className="text-[13px] sm:text-[14px] text-ink-faint px-3">Connect to submit proof of completed tasks.</p>
+                <p className="text-[13px] sm:text-[14px] text-ink-faint px-3">Connect to submit screenshots for verification.</p>
               </button>
             ) : (
-              <form onSubmit={submitProof} className="p-3 sm:p-5 border border-border rounded-sm bg-canvas">
+              <div className="p-3 sm:p-5 border border-border rounded-sm bg-canvas">
                 <div className="grid gap-4">
+
+                  {/* Upload */}
                   <div>
                     <label className="block text-[13px] font-bold uppercase tracking-wide text-ink-muted mb-2">Screenshot</label>
                     <label className={`relative flex flex-col items-center justify-center w-full h-40 rounded-sm border border-dashed cursor-pointer transition-colors ${
-                      preview ? 'border-brand/30 bg-orange-50/50' : 'border-border hover:border-brand/40 bg-canvas-surface'
+                      rawPreview ? 'border-brand/30 bg-orange-50/50' : 'border-border hover:border-brand/40 bg-canvas-surface'
                     }`}>
-                      {preview ? (
-                        <img src={preview} alt="Preview" className="absolute inset-0 w-full h-full object-contain rounded-sm p-2" />
+                      {rawPreview ? (
+                        <img src={rawPreview} alt="Preview" className="absolute inset-0 w-full h-full object-contain rounded-sm p-2" />
                       ) : (
                         <div className="text-center">
                           <div className="text-2xl mb-1">📸</div>
-                          <span className="text-[14px] font-semibold text-ink-muted">Screenshot showing your Like & Retweet</span>
-                          <span className="block text-[12px] text-ink-faint mt-0.5">PNG, JPEG, WebP</span>
+                          <span className="text-[14px] font-semibold text-ink-muted">Drop your GenLayer post screenshot</span>
+                          <span className="block text-[12px] text-ink-faint mt-0.5">PNG, JPEG, WebP · max 20MB</span>
                         </div>
                       )}
                       <input type="file" accept="image/png,image/jpeg,image/webp" onChange={e => handleFile(e.target.files?.[0])}
                         className="absolute inset-0 opacity-0 cursor-pointer" />
                     </label>
-                    {preview && (
-                      <button type="button" onClick={() => handleFile(undefined)}
+                    {rawPreview && (
+                      <button type="button" onClick={() => { setFile(null); setRawPreview(null); setCompressedPreview(null); setCompressedBlob(null); setCompressedBytes(null); setCompressionInfo(null); setCompressWarn(null); setTaskId(null); setTxHash(null); setResult(null) }}
                         className="mt-1.5 text-[12px] font-semibold text-ink-faint hover:text-brand transition-colors">Remove</button>
                     )}
                   </div>
 
-                  {action !== 'like' && (
-                  <div>
-                    <label className="block text-[13px] font-bold uppercase tracking-wide text-ink-muted mb-2">
-                      Tweet URL
-                      <span className="text-ink-faint ml-1 text-[11px]">(your retweet URL)</span>
-                    </label>
-                    <input value={tweetUrl} onChange={e => setTweetUrl(e.target.value)}
-                      placeholder="https://x.com/yourhandle/status/…"
-                      className="w-full bg-canvas-surface border border-border-light rounded-sm px-3 py-2 text-[14px] text-ink font-mono placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-focus/50" />
-                  </div>
+                  {/* Compression info / Debug panel */}
+                  {compressionInfo && (
+                    <div className="border border-border rounded-sm overflow-hidden">
+                      <div className="px-3 py-2 bg-canvas-surface border-b border-border flex items-center gap-2">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-ink-muted">Debug: Image</span>
+                        <span className="text-[10px] text-ink-faint ml-auto font-mono">w:{compressionInfo.width} × h:{compressionInfo.height}</span>
+                      </div>
+                      <div className="p-3 grid grid-cols-2 gap-2 text-[12px] font-mono">
+                        <div className="flex items-center gap-2">
+                          <span className="text-ink-faint">Original:</span>
+                          <span className="font-bold text-ink">{fmtBytes(compressionInfo.originalSize)}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-ink-faint">Compressed:</span>
+                          <span className={`font-bold ${compressedBytes && compressedBytes.length > 50000 ? 'text-red-600' : 'text-emerald-600'}`}>
+                            {fmtBytes(compressionInfo.compressedSize)}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-ink-faint">Ratio:</span>
+                          <span className="font-bold text-brand">-{compressionInfo.ratio}%</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-ink-faint">Limit:</span>
+                          <span className={compressedBytes && compressedBytes.length > 50000 ? 'text-red-600 font-bold' : 'text-ink-faint'}>
+                            50KB (Bradbury)
+                          </span>
+                        </div>
+                      </div>
+                      {compressWarn && (
+                        <div className="px-3 py-2 bg-red-50 border-t border-red-200 text-[12px] text-red-700 font-medium">{compressWarn}</div>
+                      )}
+                    </div>
                   )}
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-[13px] font-bold uppercase tracking-wide text-ink-muted mb-2">Your handle</label>
-                      <input value={handle} onChange={e => setHandle(e.target.value.replace('@',''))}
-                        placeholder="@username"
-                        className="w-full bg-canvas-surface border border-border-light rounded-sm px-3 py-2 text-[14px] text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-focus/50" />
-                    </div>
-                    <div>
-                      <label className="block text-[13px] font-bold uppercase tracking-wide text-ink-muted mb-2">Action</label>
-                      <select value={action} onChange={e => setAction(e.target.value)}
-                        className="w-full bg-canvas-surface border border-border-light rounded-sm px-3 py-2 text-[14px] text-ink font-semibold focus:outline-none focus:ring-2 focus:ring-focus/50 appearance-none cursor-pointer"
-                        style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%2365675e' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center' }}>
-                        {ACTIONS.map(a => (
-                          <option key={a} value={a}>{a.charAt(0).toUpperCase() + a.slice(1)}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  {isConnected && address && (
-                    <div className="p-3 bg-orange-50/50 border border-brand/20 rounded-sm">
-                      <div className="text-[11px] font-bold uppercase tracking-widest text-ink-faint mb-1">Your wallet address</div>
-                      <div className="flex items-center gap-2">
-                        <code className="text-[12px] font-mono text-ink-deep bg-white px-2 py-1 rounded-sm border border-border flex-1 truncate">{address}</code>
-                        <button type="button" onClick={() => navigator.clipboard.writeText(address)}
-                          className="shrink-0 text-[11px] font-semibold text-brand hover:underline">Copy</button>
+                  {/* Side-by-side preview */}
+                  {rawPreview && compressedPreview && (
+                    <div className="grid grid-cols-2 gap-3 border border-border rounded-sm p-3">
+                      <div>
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-ink-faint mb-1">Original</div>
+                        <img src={rawPreview} alt="Original" className="w-full h-28 object-contain rounded-sm border border-border" />
                       </div>
-                      <p className="text-[11px] text-ink-faint mt-1.5 leading-[1.4]">
-                        Reply to the pinned post with this address to prove you own your X account. The AI will verify the reply.
-                      </p>
+                      <div>
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-ink-faint mb-1">Compressed ({fmtBytes(compressionInfo?.compressedSize || 0)})</div>
+                        <img src={compressedPreview} alt="Compressed" className="w-full h-28 object-contain rounded-sm border border-border" />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TX Debug Panel */}
+                  {(txHash || taskId || result) && (
+                    <div className="border border-indigo-200 bg-indigo-50/30 rounded-sm overflow-hidden">
+                      <div className="px-3 py-2 bg-indigo-100/50 border-b border-indigo-200 flex items-center gap-2">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-700">Debug: Transaction</span>
+                      </div>
+                      <div className="p-3 space-y-1.5 text-[12px] font-mono">
+                        {txHash && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-ink-faint shrink-0">TX:</span>
+                            <span className="text-ink break-all">{txHash}</span>
+                          </div>
+                        )}
+                        {taskId && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-ink-faint shrink-0">ID:</span>
+                            <span className="font-bold text-ink-deep">{taskId}</span>
+                          </div>
+                        )}
+                        {result && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-ink-faint shrink-0">Result:</span>
+                            <span className={`font-bold ${result.status === 'verified' ? 'text-emerald-600' : result.status === 'rejected' ? 'text-red-600' : 'text-amber-600'}`}>
+                              {result.status} — {result.reason}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Submit */}
+                  <button onClick={submitProof}
+                    disabled={submitting || !compressedBytes || (!!compressedBytes && compressedBytes.length > 55000)}
+                    className={`w-full py-2.5 text-white text-[15px] font-bold rounded-sm transition-all ${
+                      !compressedBytes || (!!compressedBytes && compressedBytes.length > 55000)
+                        ? 'bg-ink-faint/40 cursor-not-allowed'
+                        : submitting
+                        ? 'bg-brand/70 cursor-wait'
+                        : 'bg-brand-dark hover:opacity-70'
+                    }`}>
+                    {!compressedBytes ? 'Select an image first'
+                      : submitting ? 'Submitting to GenLayer…'
+                      : compressedBytes.length > 50000 ? `Image too large (${fmtBytes(compressedBytes.length)})`
+                      : `Submit ${(compressedBytes && compressedBytes.length) ? fmtBytes(compressedBytes.length) : ''} →`}
+                  </button>
+
+                  {submitting && (
+                    <div className="text-center text-[12px] text-ink-muted font-mono animate-pulse">
+                      Waiting for transaction confirmation… this may take 1-2 minutes
                     </div>
                   )}
                 </div>
-
-                <button type="submit" disabled={submitting || !screenshot || !handle || (action === 'retweet' && !tweetUrl)}
-                  className="mt-5 w-full py-2.5 bg-brand-dark hover:opacity-70 disabled:opacity-30 disabled:cursor-not-allowed text-white text-[15px] font-bold rounded-sm transition-all">
-                  {uploading ? 'Uploading…' : submitting ? 'Confirming on-chain…' : 'Submit proof'}
-                </button>
-              </form>
+              </div>
             )}
           </>
         )}
