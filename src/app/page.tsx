@@ -8,6 +8,15 @@ import { createClient } from 'genlayer-js'
 import { testnetBradbury, studionet } from 'genlayer-js/chains'
 import ConnectWallet from '../../components/ConnectWallet'
 
+// ── Provider helper — OKX Wallet uses window.okxwallet, not window.ethereum ──
+
+const getProvider = () => {
+  if (typeof window !== 'undefined' && (window as any).okxwallet) {
+    return (window as any).okxwallet
+  }
+  return window.ethereum
+}
+
 // ── Networks ───────────────────────────────────────────────────────
 
 const BRADBURY = defineChain({
@@ -189,7 +198,7 @@ export default function Home() {
     setSubmitting(true); setTxHash(null); setTaskId(null); setResult(null)
     try {
       // Detect wallet's actual chain — don't rely on toggle state
-      const walletChainHex: string = await window.ethereum.request({ method: 'eth_chainId' })
+      const walletChainHex: string = await getProvider().request({ method: 'eth_chainId' })
       const walletChainId = parseInt(walletChainHex, 16)
       const isWalletOnStudio = walletChainId === 61999
       const activeChain = isWalletOnStudio ? studionet : testnetBradbury
@@ -208,7 +217,7 @@ export default function Home() {
       const glWriteClient = createClient({
         chain: activeChain as any,
         account: address as `0x${string}`,
-        provider: window.ethereum,
+        provider: getProvider(),
       })
 
       const hash = await glWriteClient.writeContract({
@@ -261,7 +270,7 @@ export default function Home() {
     setVerifying(id)
     try {
       // Detect wallet's chain — don't rely on toggle state
-      const walletChainHexVerify: string = await window.ethereum.request({ method: 'eth_chainId' })
+      const walletChainHexVerify: string = await getProvider().request({ method: 'eth_chainId' })
       const walletChainIdVerify = parseInt(walletChainHexVerify, 16)
       const isWalletOnStudioVerify = walletChainIdVerify === 61999
       const activeChainVerify = isWalletOnStudioVerify ? studionet : testnetBradbury
@@ -279,7 +288,7 @@ export default function Home() {
       const glWriteClient = createClient({
         chain: activeChainVerify as any,
         account: address as `0x${string}`,
-        provider: window.ethereum,
+        provider: getProvider(),
       })
 
       const hash = await glWriteClient.writeContract({
@@ -372,7 +381,7 @@ export default function Home() {
             {hasBradbury && (
               <button onClick={async () => {
                 try {
-                  await window.ethereum.request({
+                  await getProvider().request({
                     method: 'wallet_switchEthereumChain',
                     params: [{ chainId: `0x${BRADBURY.id.toString(16)}` }],
                   })
@@ -391,14 +400,14 @@ export default function Home() {
               <button onClick={async () => {
                 const hexId = `0x${studionet.id.toString(16)}`
                 try {
-                  await window.ethereum.request({
+                  await getProvider().request({
                     method: 'wallet_switchEthereumChain',
                     params: [{ chainId: hexId }],
                   })
                   setNetwork('studionet')
                 } catch (e: any) {
                   if (e.code === 4902) {
-                    await window.ethereum.request({
+                    await getProvider().request({
                       method: 'wallet_addEthereumChain',
                       params: [{
                         chainId: hexId,
