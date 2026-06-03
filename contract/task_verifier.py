@@ -12,7 +12,6 @@ PINNED_POST = "https://x.com/GenLayer/status/2033575658165867008"
 class Task:
     submitter: Address
     screenshot_url: str
-    expected_handle: str
     status: str               # "pending", "verified", "rejected"
     verdict_reason: str
     timestamp: str
@@ -24,7 +23,6 @@ class TaskVerifier(gl.Contract):
 
     # ── Anti-abuse storage ──────────────────────────────────────
     used_screenshots: TreeMap[str, bool]   # screenshot_url → claimed
-    verified_handles: TreeMap[str, Address]  # X handle → wallet that verified it
 
     def __init__(self):
         self.task_count = u256(0)
@@ -32,24 +30,9 @@ class TaskVerifier(gl.Contract):
     # ── Submit a new verification task ──────────────────────────
 
     @gl.public.write
-    def submit_task(
-        self,
-        expected_handle: str,
-        screenshot_url: str,
-    ) -> str:
-        import re
-        handle_re = r'^[A-Za-z0-9_]{1,15}$'
-        if not re.match(handle_re, expected_handle):
-            raise gl.vm.UserError("invalid X handle format")
-
+    def submit_task(self, screenshot_url: str) -> str:
         if self.used_screenshots.get(screenshot_url, False):
             raise gl.vm.UserError("this screenshot has already been used")
-
-        existing = self.verified_handles.get(expected_handle)
-        if existing is not None and existing != gl.message.sender_address:
-            raise gl.vm.UserError(
-                f"handle @{expected_handle} is already verified to another wallet"
-            )
 
         task_id = f"task_{int(self.task_count)}"
         now = gl.message_raw["datetime"]
@@ -57,7 +40,6 @@ class TaskVerifier(gl.Contract):
         self.tasks[task_id] = Task(
             submitter=gl.message.sender_address,
             screenshot_url=screenshot_url,
-            expected_handle=expected_handle,
             status="pending",
             verdict_reason="",
             timestamp=now,
@@ -100,7 +82,7 @@ class TaskVerifier(gl.Contract):
 You are given ONE image and the rendered text of a Twitter/X page.
 Analyze BOTH the image and the page text.
 
-CLAIM: user @{task.expected_handle} liked the GenLayer pinned post.
+CLAIM: the user liked the GenLayer pinned post.
 PINNED POST: {PINNED_POST}
 
 Rendered page text:
@@ -151,10 +133,6 @@ Do NOT include any other keys, explanations, or markdown."""
         task.verdict_reason = verdict_json["reason"]
         self.tasks[task_id] = task
 
-        # Lock rewards on successful verification
-        if verdict_json["verdict"] == "verified":
-            self.verified_handles[task.expected_handle] = task.submitter
-
         return verdict_json
 
     # ── Views ──────────────────────────────────────────────────
@@ -167,7 +145,6 @@ Do NOT include any other keys, explanations, or markdown."""
         return {
             "submitter": task.submitter.as_hex,
             "screenshot_url": task.screenshot_url,
-            "expected_handle": task.expected_handle,
             "status": task.status,
             "verdict_reason": task.verdict_reason,
             "timestamp": task.timestamp,
@@ -179,7 +156,6 @@ Do NOT include any other keys, explanations, or markdown."""
             k: {
                 "submitter": v.submitter.as_hex,
                 "screenshot_url": v.screenshot_url,
-                "expected_handle": v.expected_handle,
                 "status": v.status,
                 "verdict_reason": v.verdict_reason,
                 "timestamp": v.timestamp,
@@ -190,14 +166,6 @@ Do NOT include any other keys, explanations, or markdown."""
     @gl.public.view
     def get_task_count(self) -> int:
         return int(self.task_count)
-
-    @gl.public.view
-    def get_verified_handle(self, handle: str) -> str:
-        """Check if an X handle is verified and which wallet owns it."""
-        addr = self.verified_handles.get(handle)
-        if addr is None:
-            return "not_verified"
-        return addr.as_hex
 
     @gl.public.view
     def is_screenshot_used(self, url: str) -> bool:
