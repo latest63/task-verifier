@@ -91,7 +91,6 @@ export default function Home() {
   // Dashboard
   const [subs, setSubs] = useState<Record<string, SubData>>({})
   const [loading, setLoading] = useState(false)
-  const [verifying, setVerifying] = useState<string | null>(null)
 
   // Submit
   const [file, setFile] = useState<File | null>(null)
@@ -108,9 +107,13 @@ export default function Home() {
   const [taskId, setTaskId] = useState<string | null>(null)
   const [result, setResult] = useState<{ status: string; reason: string } | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const submittingRef = useRef(false)
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+
+  const [verifying, setVerifying] = useState<string | null>(null)
+  const verifyingRef = useRef(false)
 
   useEffect(() => { if (error) { const t = setTimeout(() => setError(null), 6000); return () => clearTimeout(t) } }, [error])
 
@@ -197,6 +200,8 @@ export default function Home() {
 
   const submitProof = async () => {
     if (!address || !walletClient || !compressedBytes || !contractAddr) return
+    if (submittingRef.current) return
+    submittingRef.current = true
     setSubmitting(true); setTxHash(null); setTaskId(null); setResult(null)
     try {
       // Detect wallet's actual chain — don't rely on toggle state
@@ -251,13 +256,15 @@ export default function Home() {
     } catch (e: any) {
       console.error('submit error:', e)
       setError(e?.cause?.message || e?.shortMessage || e?.message || e?.toString() || 'Submission failed')
-    } finally { setSubmitting(false) }
+    } finally { submittingRef.current = false; setSubmitting(false) }
   }
 
   // ── Verify ───────────────────────────────────────────────────────
 
   const verifyOne = async (id: string) => {
     if (!address || !walletClient) return
+    if (verifyingRef.current) return
+    verifyingRef.current = true
     setVerifying(id)
     try {
       // Detect wallet's chain — don't rely on toggle state
@@ -298,7 +305,7 @@ export default function Home() {
       }
     } catch (e: any) {
       setError(e?.cause?.message || e?.shortMessage || e?.message || 'Verification failed')
-    } finally { setVerifying(null) }
+    } finally { verifyingRef.current = false; setVerifying(null) }
   }
 
   const verifyAll = async () => {
