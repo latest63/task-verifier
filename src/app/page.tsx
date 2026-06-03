@@ -188,16 +188,31 @@ export default function Home() {
     if (!address || !walletClient || !compressedBytes || !contractAddr) return
     setSubmitting(true); setTxHash(null); setTaskId(null); setResult(null)
     try {
+      // Detect wallet's actual chain — don't rely on toggle state
+      const walletChainHex: string = await window.ethereum.request({ method: 'eth_chainId' })
+      const walletChainId = parseInt(walletChainHex, 16)
+      const isWalletOnStudio = walletChainId === 61999
+      const activeChain = isWalletOnStudio ? studionet : testnetBradbury
+      const activeContract = isWalletOnStudio ? contractStudio : contractBradbury
+
+      // Sync UI to wallet's actual chain
+      if (isWalletOnStudio ? network !== 'studionet' : network !== 'bradbury') {
+        setNetwork(isWalletOnStudio ? 'studionet' : 'bradbury')
+      }
+
+      if (!activeContract) {
+        throw new Error(`No contract configured for ${isWalletOnStudio ? 'Studio' : 'Bradbury'}. Set the env var and redeploy.`)
+      }
+
       // Use genlayer-js write client with MetaMask for signing (not wagmi — GenLayer has own ABI encoding)
-      const glChain = network === 'bradbury' ? testnetBradbury : studionet
       const glWriteClient = createClient({
-        chain: glChain as any,
+        chain: activeChain as any,
         account: address as `0x${string}`,
         provider: window.ethereum,
       })
 
       const hash = await glWriteClient.writeContract({
-        address: contractAddr as `0x${string}`,
+        address: activeContract as `0x${string}`,
         functionName: 'submit',
         args: [compressedBytes],  // genlayer-js expects Uint8Array for bytes type
         value: 0n,
@@ -245,34 +260,30 @@ export default function Home() {
     if (!address || !walletClient) return
     setVerifying(id)
     try {
-      // Ensure wallet is on the correct chain
-      const chainIdHex = `0x${netCfg.chain.id.toString(16)}`
-      try {
-        await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: chainIdHex }] })
-      } catch (switchErr: any) {
-        if (switchErr.code === 4902) {
-          await window.ethereum.request({
-            method: 'wallet_addEthereumChain',
-            params: [{
-              chainId: chainIdHex,
-              chainName: netCfg.chain.name,
-              rpcUrls: [netCfg.chain.rpcUrls.default.http[0]],
-              nativeCurrency: netCfg.chain.nativeCurrency,
-              blockExplorerUrls: netCfg.chain.blockExplorers ? [netCfg.chain.blockExplorers.default.url] : [],
-            }],
-          })
-        }
+      // Detect wallet's chain — don't rely on toggle state
+      const walletChainHexVerify: string = await window.ethereum.request({ method: 'eth_chainId' })
+      const walletChainIdVerify = parseInt(walletChainHexVerify, 16)
+      const isWalletOnStudioVerify = walletChainIdVerify === 61999
+      const activeChainVerify = isWalletOnStudioVerify ? studionet : testnetBradbury
+      const activeContractVerify = isWalletOnStudioVerify ? contractStudio : contractBradbury
+
+      // Sync UI to wallet's actual chain
+      if (isWalletOnStudioVerify ? network !== 'studionet' : network !== 'bradbury') {
+        setNetwork(isWalletOnStudioVerify ? 'studionet' : 'bradbury')
       }
 
-      const glChain = network === 'bradbury' ? testnetBradbury : studionet
+      if (!activeContractVerify) {
+        throw new Error(`No contract configured for ${isWalletOnStudioVerify ? 'Studio' : 'Bradbury'}.`)
+      }
+
       const glWriteClient = createClient({
-        chain: glChain as any,
+        chain: activeChainVerify as any,
         account: address as `0x${string}`,
         provider: window.ethereum,
       })
 
       const hash = await glWriteClient.writeContract({
-        address: contractAddr as `0x${string}`,
+        address: activeContractVerify as `0x${string}`,
         functionName: 'verify',
         args: [id],
         value: 0n,
