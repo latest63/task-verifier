@@ -192,13 +192,14 @@ export default function Home() {
       const glChain = network === 'bradbury' ? testnetBradbury : studionet
       const glWriteClient = createClient({
         chain: glChain as any,
+        account: address as `0x${string}`,
         provider: window.ethereum,
       })
 
       const hash = await glWriteClient.writeContract({
         address: contractAddr as `0x${string}`,
         functionName: 'submit',
-        args: [Array.from(compressedBytes)],  // genlayer-js expects array of bytes
+        args: [compressedBytes],  // genlayer-js expects Uint8Array for bytes type
         value: 0n,
       })
       setTxHash(hash as string)
@@ -266,6 +267,7 @@ export default function Home() {
       const glChain = network === 'bradbury' ? testnetBradbury : studionet
       const glWriteClient = createClient({
         chain: glChain as any,
+        account: address as `0x${string}`,
         provider: window.ethereum,
       })
 
@@ -357,7 +359,15 @@ export default function Home() {
         {(hasBradbury || hasStudio) && (
           <div className="mb-8 flex items-center gap-3 flex-wrap">
             {hasBradbury && (
-              <button onClick={() => setNetwork('bradbury')}
+              <button onClick={async () => {
+                try {
+                  await window.ethereum.request({
+                    method: 'wallet_switchEthereumChain',
+                    params: [{ chainId: `0x${BRADBURY.id.toString(16)}` }],
+                  })
+                  setNetwork('bradbury')
+                } catch {}
+              }}
                 className={`px-3 py-1.5 text-[12px] font-bold rounded-sm border transition-all ${
                   network === 'bradbury'
                     ? 'border-[#F54E00] bg-[#F54E00]/10 text-[#F54E00]'
@@ -367,7 +377,29 @@ export default function Home() {
               </button>
             )}
             {hasStudio && (
-              <button onClick={() => setNetwork('studionet')}
+              <button onClick={async () => {
+                const hexId = `0x${studionet.id.toString(16)}`
+                try {
+                  await window.ethereum.request({
+                    method: 'wallet_switchEthereumChain',
+                    params: [{ chainId: hexId }],
+                  })
+                  setNetwork('studionet')
+                } catch (e: any) {
+                  if (e.code === 4902) {
+                    await window.ethereum.request({
+                      method: 'wallet_addEthereumChain',
+                      params: [{
+                        chainId: hexId,
+                        chainName: 'GenLayer Studio',
+                        rpcUrls: ['https://studio.genlayer.com/api'],
+                        nativeCurrency: { name: 'GEN', symbol: 'GEN', decimals: 18 },
+                      }],
+                    })
+                    setNetwork('studionet')
+                  }
+                }
+              }}
                 className={`px-3 py-1.5 text-[12px] font-bold rounded-sm border transition-all ${
                   network === 'studionet'
                     ? 'border-indigo-500 bg-indigo-50 text-indigo-600'
