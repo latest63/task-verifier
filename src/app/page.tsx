@@ -132,7 +132,7 @@ export default function Home() {
       if (screenshot.size > 10 * 1024 * 1024) throw new Error('Screenshot too large (max 10MB)')
       const fd = new FormData(); fd.append('file', screenshot)
       const controller = new AbortController()
-      const to = setTimeout(() => controller.abort(), 15000)
+      const to = setTimeout(() => controller.abort(new DOMException('Upload timed out — file upload took too long', 'TimeoutError')), 60000)
       const up = await fetch('/api/upload', { method: 'POST', body: fd, signal: controller.signal })
       clearTimeout(to)
       if (!up.ok) { const err = await up.json(); throw new Error(err.error || 'Upload failed') }
