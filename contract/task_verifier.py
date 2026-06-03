@@ -142,7 +142,10 @@ Analyze the screenshot image I have attached alongside this text:
 4. Are the engagement numbers (likes, retweets, replies) consistent between the screenshot and the live page?
 5. Are there any visual signs of manipulation (misaligned text, inconsistent fonts, fake UI elements)?
 
-CRITICAL: If the screenshot shows a DIFFERENT handle or does not clearly show @{task.expected_handle}'s interaction, the verdict must be "rejected".
+CRITICAL — READ THIS FIRST:
+- If the image is NOT a valid X/Twitter screenshot (e.g. error page, blank image, broken image icon, HTML page, placeholder, random graphic), the verdict MUST be "rejected".
+- If the screenshot shows a DIFFERENT handle or does not clearly show @{task.expected_handle}'s interaction, the verdict must be "rejected".
+- A blank, unreadable, or clearly-not-X-screenshot image is an automatic rejection regardless of the text context.
 
 Respond STRICTLY in this JSON format, no other text:
 {{"verdict": "verified" or "rejected", "reason": "short explanation", "confidence": "high" or "medium" or "low"}}"""
