@@ -7,7 +7,7 @@ export default function LandingPage() {
       <header className="sticky top-0 z-50 bg-canvas/90 backdrop-blur-sm border-b border-border">
         <div className="max-w-5xl mx-auto px-3 sm:px-6 h-14 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            <img src="/logo-nav.png" alt="Task Verifier" className="w-10 h-10 sm:w-12 sm:h-12 rounded-sm object-contain" />
+            <img src="/logo-nav.png" alt="Task Verifier" className="w-12 h-12 sm:w-14 sm:h-14 rounded-sm object-contain" />
             <span className="hidden sm:inline text-[15px] font-semibold text-ink-deep tracking-tight">Task Verifier</span>
           </div>
           <Link href="/app"
