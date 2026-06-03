@@ -48,7 +48,8 @@ const NETWORKS: Record<NetworkId, {
 
 type SubData = {
   submitter: string; img_size: number;
-  status: string; verdict: string; timestamp: string
+  status: string; verdict: string; timestamp: string;
+  _network?: 'bradbury' | 'studionet'
 }
 
 const fmtAddr = (a: string) => a ? `${a.slice(0, 6)}…${a.slice(-4)}` : '—'
@@ -68,19 +69,18 @@ export default function Home() {
   const contractAddr = network === 'bradbury' ? contractBradbury : contractStudio
   const netCfg = NETWORKS[network]
 
-  // Lazy read client — created on demand inside try-catch
-  const glClient = useMemo(() => {
-    try {
-      if (network === 'bradbury') return createClient({ chain: testnetBradbury })
-      // Studio: extend Bradbury chain with Studio RPC
-      return createClient({
-        chain: { ...testnetBradbury, rpcUrls: { default: { http: ['https://studio.genlayer.com/api'] } } } as any,
-      })
-    } catch (e) {
-      console.error('Failed to create read client:', e)
-      return null
-    }
-  }, [network])
+  // Read clients for both networks
+  const bClient = useMemo(() => {
+    if (!hasBradbury && !hasStudio) return null
+    return createClient({ chain: testnetBradbury })
+  }, [hasBradbury, hasStudio])
+
+  const sClient = useMemo(() => {
+    if (!hasStudio) return null
+    return createClient({
+      chain: { ...testnetBradbury, rpcUrls: { default: { http: ['https://studio.genlayer.com/api'] } } } as any,
+    })
+  }, [hasStudio])
 
   const { address, isConnected } = useAccount()
   const { data: walletClient } = useWalletClient()
@@ -117,22 +117,44 @@ export default function Home() {
 
   useEffect(() => { if (error) { const t = setTimeout(() => setError(null), 6000); return () => clearTimeout(t) } }, [error])
 
-  // ── Fetch submissions ────────────────────────────────────────────
+  // ── Fetch submissions from both networks ─────────────────────────
 
   const fetchSubs = useCallback(async () => {
-    if (!contractAddr || !glClient) return
     setLoading(true)
+    const merged: Record<string, SubData> = {}
     try {
-      const raw = await glClient.readContract({
-        address: contractAddr as `0x${string}`,
-        functionName: 'get_all',
-        args: [],
-      })
-      const data = raw && typeof raw === 'object' ? raw as unknown as Record<string, SubData> : {}
-      setSubs(data)
-      return data
+      if (bClient && contractBradbury) {
+        try {
+          const raw = await bClient.readContract({
+            address: contractBradbury as `0x${string}`,
+            functionName: 'get_all',
+            args: [],
+          })
+          if (raw && typeof raw === 'object') {
+            for (const [k, v] of Object.entries(raw as any)) {
+              merged[`bradbury/${k}`] = { ...(v as any), _network: 'bradbury' }
+            }
+          }
+        } catch (e) { console.error('bradbury fetch error:', e) }
+      }
+      if (sClient && contractStudio) {
+        try {
+          const raw = await sClient.readContract({
+            address: contractStudio as `0x${string}`,
+            functionName: 'get_all',
+            args: [],
+          })
+          if (raw && typeof raw === 'object') {
+            for (const [k, v] of Object.entries(raw as any)) {
+              merged[`studionet/${k}`] = { ...(v as any), _network: 'studionet' }
+            }
+          }
+        } catch (e) { console.error('studio fetch error:', e) }
+      }
+      setSubs(merged)
+      return merged
     } catch (e) { console.error('fetch error:', e); return {} } finally { setLoading(false) }
-  }, [contractAddr, glClient])
+  }, [bClient, sClient, contractBradbury, contractStudio])
 
   useEffect(() => { fetchSubs(); const i = setInterval(fetchSubs, 10000); return () => clearInterval(i) }, [fetchSubs])
 
@@ -261,46 +283,64 @@ export default function Home() {
 
   // ── Verify ───────────────────────────────────────────────────────
 
-  const verifyOne = async (id: string) => {
+  const verifyOne = async (compositeKey: string) => {
     if (!address || !walletClient) return
     if (verifyingRef.current) return
     verifyingRef.current = true
-    setVerifying(id)
+    setVerifying(compositeKey)
     try {
-      // Detect wallet's chain — don't rely on toggle state
-      const walletChainHexVerify: string = await getProvider().request({ method: 'eth_chainId' })
-      const walletChainIdVerify = parseInt(walletChainHexVerify, 16)
-      const isWalletOnStudioVerify = walletChainIdVerify === 61999
-      const activeChainVerify = isWalletOnStudioVerify ? studionet : testnetBradbury
-      const activeContractVerify = isWalletOnStudioVerify ? contractStudio : contractBradbury
+      // Parse composite key: "bradbury/v_0" or "studionet/v_0"
+      const parts = compositeKey.split('/')
+      const subNetwork = parts[0] as NetworkId
+      const subId = parts.slice(1).join('/')  // in case ID has slashes
+      const isStudioSub = subNetwork === 'studionet'
+      const chain = isStudioSub ? studionet : testnetBradbury
+      const contract = isStudioSub ? contractStudio : contractBradbury
 
-      // Sync UI to wallet's actual chain
-      if (isWalletOnStudioVerify ? network !== 'studionet' : network !== 'bradbury') {
-        setNetwork(isWalletOnStudioVerify ? 'studionet' : 'bradbury')
+      if (!contract) {
+        throw new Error(`No contract configured for ${isStudioSub ? 'Studio' : 'Bradbury'}.`)
       }
 
-      if (!activeContractVerify) {
-        throw new Error(`No contract configured for ${isWalletOnStudioVerify ? 'Studio' : 'Bradbury'}.`)
+      // Switch wallet to the submission's chain
+      const hexId = `0x${(isStudioSub ? studionet : testnetBradbury).id.toString(16)}`
+      try {
+        await getProvider().request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: hexId }],
+        })
+      } catch (e: any) {
+        if (e.code === 4902) {
+          await getProvider().request({
+            method: 'wallet_addEthereumChain',
+            params: [{
+              chainId: hexId,
+              chainName: isStudioSub ? 'GenLayer Studio' : 'GenLayer Bradbury Testnet',
+              rpcUrls: isStudioSub ? ['https://studio.genlayer.com/api'] : ['https://rpc-bradbury.genlayer.com'],
+              nativeCurrency: { name: 'GEN', symbol: 'GEN', decimals: 18 },
+            }],
+          })
+        }
       }
+      setNetwork(subNetwork)
 
       const glWriteClient = createClient({
-        chain: activeChainVerify as any,
+        chain: chain as any,
         account: address as `0x${string}`,
         provider: getProvider(),
       })
 
       await glWriteClient.writeContract({
-        address: activeContractVerify as `0x${string}`,
+        address: contract as `0x${string}`,
         functionName: 'verify',
-        args: [id],
+        args: [subId],
         value: 0n,
       })
 
-      // genlayer-js handles receipt internally. Poll for updated status.
+      // Poll for updated status
       for (let i = 0; i < 10; i++) {
         await new Promise(r => setTimeout(r, 2000))
         const fresh = await fetchSubs()
-        const entry = (fresh || {})[id]
+        const entry = (fresh || {})[compositeKey]
         if (entry?.status !== 'pending') break
       }
     } catch (e: any) {
@@ -330,7 +370,9 @@ export default function Home() {
 
   const copyText = async (text: string) => { try { await navigator.clipboard.writeText(text) } catch {} }
 
-  const allEntries = Object.entries(subs).reverse()
+  const allEntries = Object.entries(subs).sort(([, a], [, b]) =>
+    new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+  )
   const total = allEntries.length
   const verifiedN = allEntries.filter(([, s]) => s.status === 'verified').length
   const pendingN = allEntries.filter(([, s]) => s.status === 'pending').length
@@ -480,7 +522,7 @@ export default function Home() {
         )}
 
         {/* ════════ DASHBOARD ════════ */}
-        {contractAddr && view === 'dashboard' && (
+        {(hasBradbury || hasStudio) && view === 'dashboard' && (
           <>
             <div className="mb-6 sm:mb-8">
               <h1 className="text-[24px] sm:text-[30px] font-extrabold text-ink-deep leading-[1.2] tracking-[-0.75px]">Activity</h1>
@@ -557,6 +599,12 @@ export default function Home() {
                       ? 'border-red-300/60 bg-red-50 text-red-800'
                       : 'border-amber-300/60 bg-amber-50 text-amber-800'
                     const badgeLabel = isVer ? '✓ Verified' : isRej ? '✗ Rejected' : 'Pending'
+                    const network = s._network || 'bradbury'
+                    const isStudioNet = network === 'studionet'
+                    const netCls = isStudioNet
+                      ? 'border-indigo-300/60 bg-indigo-50 text-indigo-700'
+                      : 'border-orange-300/60 bg-orange-50 text-orange-700'
+                    const displayId = id.includes('/') ? id.split('/').slice(1).join('/') : id
                     return (
                       <article key={id} className={`p-3 sm:p-4 border rounded-sm bg-canvas group transition-colors ${borderCls}`}>
                         <div className="flex flex-col sm:flex-row sm:items-start gap-2 sm:gap-3">
@@ -565,7 +613,10 @@ export default function Home() {
                               <span className={`text-[10px] sm:text-[11px] font-semibold px-2 py-0.5 rounded-sm border ${badgeCls}`}>
                                 {badgeLabel}
                               </span>
-                              <span className="text-[10px] sm:text-[11px] font-semibold text-ink-faint font-mono truncate max-w-[120px] sm:max-w-none">{id}</span>
+                              <span className={`text-[10px] sm:text-[11px] font-semibold px-2 py-0.5 rounded-sm border ${netCls}`}>
+                                {network === 'studionet' ? 'Studio' : 'Bradbury'}
+                              </span>
+                              <span className="text-[10px] sm:text-[11px] font-semibold text-ink-faint font-mono truncate max-w-[120px] sm:max-w-none">{displayId}</span>
                               <span className="text-[10px] text-ink-faint font-mono">{fmtBytes(s.img_size)}</span>
                             </div>
                             <p className="text-[11px] sm:text-[12px] text-ink-faint mt-0.5 font-mono">
