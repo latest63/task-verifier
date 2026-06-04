@@ -347,7 +347,7 @@ export default function Home() {
           <div className="flex items-center justify-between gap-1 sm:gap-3">
             {/* Logo */}
             <div className="flex items-center shrink-0">
-              <img src="/logo-nav.png" alt="Task Verifier" className="w-[150px] h-[150px] rounded-sm object-contain" />
+              <img src="/logo-nav.png" alt="Task Verifier" className="w-[120px] h-[120px] rounded-sm object-contain" />
             </div>
             {/* Nav tabs — centered, smaller on mobile */}
             <div className="flex justify-start sm:justify-center flex-1 min-w-0">
