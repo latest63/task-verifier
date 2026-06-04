@@ -122,6 +122,25 @@ export default function Home() {
   const [verifying, setVerifying] = useState<string | null>(null)
   const verifyingRef = useRef(false)
 
+  // Dropdown open states for custom selects
+  const [netOpen, setNetOpen] = useState(false)
+  const [actTaskOpen, setActTaskOpen] = useState(false)
+  const [subTaskOpen, setSubTaskOpen] = useState(false)
+  const netRef = useRef<HTMLDivElement>(null)
+  const actTaskRef = useRef<HTMLDivElement>(null)
+  const subTaskRef = useRef<HTMLDivElement>(null)
+  const dropRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    const handle = (e: MouseEvent) => {
+      if (netRef.current && !netRef.current.contains(e.target as Node)) setNetOpen(false)
+      if (actTaskRef.current && !actTaskRef.current.contains(e.target as Node)) setActTaskOpen(false)
+      if (subTaskRef.current && !subTaskRef.current.contains(e.target as Node)) setSubTaskOpen(false)
+    }
+    document.addEventListener('mousedown', handle)
+    return () => document.removeEventListener('mousedown', handle)
+  }, [])
+
   useEffect(() => { if (error) { const t = setTimeout(() => setError(null), 6000); return () => clearTimeout(t) } }, [error])
 
   // ── Fetch submissions ────────────────────────────────────────────
@@ -419,47 +438,33 @@ export default function Home() {
             {/* Network dropdown */}
             <label className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-ink-faint">
               Network
-              <span className="relative inline-block">
-                <select value={network} onChange={async (e) => {
-                const val = e.target.value as NetworkId
-                if (val === 'bradbury') {
-                  try {
-                    await getProvider().request({
-                      method: 'wallet_switchEthereumChain',
-                      params: [{ chainId: `0x${BRADBURY.id.toString(16)}` }],
-                    })
-                    setNetwork('bradbury')
-                  } catch {}
-                } else {
-                  const hexId = `0x${studionet.id.toString(16)}`
-                  try {
-                    await getProvider().request({
-                      method: 'wallet_switchEthereumChain',
-                      params: [{ chainId: hexId }],
-                    })
-                    setNetwork('studionet')
-                  } catch (e: any) {
-                    if (e.code === 4902) {
-                      await getProvider().request({
-                        method: 'wallet_addEthereumChain',
-                        params: [{
-                          chainId: hexId,
-                          chainName: 'GenLayer Studio',
-                          rpcUrls: ['https://studio.genlayer.com/api'],
-                          nativeCurrency: { name: 'GEN', symbol: 'GEN', decimals: 18 },
-                        }],
-                      })
-                      setNetwork('studionet')
-                    }
-                  }
-                }
-              }}
-                  className="px-3 py-1.5 pr-6 text-[12px] font-bold rounded-sm border border-border bg-canvas-surface appearance-none cursor-pointer focus:outline-none focus:border-brand transition-colors">
-                  {hasBradbury && <option value="bradbury">⚡ Bradbury</option>}
-                  {hasStudio && <option value="studionet">🧪 Studio</option>}
-                </select>
-                <svg className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-ink-faint" width="8" height="5" viewBox="0 0 8 5" fill="none"><path d="M1 1l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              </span>
+              <div className="relative" ref={netRef}>
+                <button onClick={() => setNetOpen(!netOpen)} onBlur={() => { dropRef.current = setTimeout(() => setNetOpen(false), 150) }} onFocus={() => { if (dropRef.current) clearTimeout(dropRef.current) }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-bold rounded-sm border border-border bg-canvas-surface hover:border-brand/40 transition-colors">
+                  <span>{network === 'bradbury' ? '⚡ Bradbury' : '🧪 Studio'}</span>
+                  <svg className="w-3 h-3 text-ink-faint shrink-0" viewBox="0 0 12 12" fill="none"><path d="M3 5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </button>
+                {netOpen && (
+                  <div className="absolute left-0 top-full mt-1 z-50 min-w-[140px] border border-border rounded-sm bg-canvas-surface shadow-lg overflow-hidden">
+                    {hasBradbury && (
+                      <button onMouseDown={async (e) => { e.preventDefault(); setNetOpen(false);
+                        try { await getProvider().request({ method: 'wallet_switchEthereumChain', params: [{ chainId: `0x${BRADBURY.id.toString(16)}` }] }); setNetwork('bradbury') } catch {}
+                      }} className="w-full text-left px-3 py-1.5 text-[12px] font-bold hover:bg-canvas-raised transition-colors flex items-center gap-1.5">
+                        ⚡ Bradbury
+                      </button>
+                    )}
+                    {hasStudio && (
+                      <button onMouseDown={async (e) => { e.preventDefault(); setNetOpen(false);
+                        const hexId = `0x${studionet.id.toString(16)}`
+                        try { await getProvider().request({ method: 'wallet_switchEthereumChain', params: [{ chainId: hexId }] }); setNetwork('studionet') }
+                        catch (e: any) { if (e.code === 4902) { await getProvider().request({ method: 'wallet_addEthereumChain', params: [{ chainId: hexId, chainName: 'GenLayer Studio', rpcUrls: ['https://studio.genlayer.com/api'], nativeCurrency: { name: 'GEN', symbol: 'GEN', decimals: 18 } }] }); setNetwork('studionet') } }
+                      }} className="w-full text-left px-3 py-1.5 text-[12px] font-bold hover:bg-canvas-raised transition-colors flex items-center gap-1.5">
+                        🧪 Studio
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
             </label>
           </div>
         )}
@@ -493,12 +498,19 @@ export default function Home() {
 
         {/* ── Error banner ── */}
         {error && (
-          <div className="mb-6 p-3 sm:p-4 border border-red-300/70 bg-red-50 rounded-sm flex items-start justify-between gap-2">
+          <div className="mb-6 p-3 sm:p-4 border border-red-300/70 bg-red-50 rounded-sm flex items-start justify-between gap-2 shadow-sm">
             <div className="flex items-start gap-2.5">
-              <span className="text-red-500 text-[15px] mt-0.5 shrink-0">⚠</span>
+              <svg className="w-4 h-4 text-red-500 mt-0.5 shrink-0" viewBox="0 0 16 16" fill="none">
+                <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5"/>
+                <path d="M8 5v3.5M8 11v.01" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
               <p className="text-[13px] sm:text-[14px] text-red-800 leading-[1.5]">{error}</p>
             </div>
-            <button onClick={() => setError(null)} className="text-red-400 hover:text-red-600 text-[16px] leading-none shrink-0 font-bold">&times;</button>
+            <button onClick={() => setError(null)} className="text-red-400 hover:text-red-600 transition-colors shrink-0 p-0.5">
+              <svg className="w-3.5 h-3.5" viewBox="0 0 12 12" fill="none">
+                <path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+            </button>
           </div>
         )}
 
@@ -606,16 +618,19 @@ export default function Home() {
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <h2 className="text-[16px] sm:text-[18px] font-bold text-ink-deep">Recent Submissions</h2>
-                  <span className="relative inline-block">
-                    <select value={taskType} onChange={(e) => setTaskType(e.target.value as TaskType)}
-                      className="px-2 py-1 pr-5 text-[11px] font-bold rounded-sm border border-border bg-canvas-surface appearance-none cursor-pointer focus:outline-none focus:border-brand transition-colors uppercase tracking-wider">
-                      <option value="post_screenshot">📸 Post</option>
-                      <option value="liked_post_screenshot">❤️ Liked</option>
-                    </select>
-                    <svg className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none text-ink-faint" width="8" height="5" viewBox="0 0 8 5" fill="none">
-                      <path d="M1 1l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  </span>
+                  <div className="relative" ref={actTaskRef}>
+                    <button onClick={() => setActTaskOpen(!actTaskOpen)} onBlur={() => { dropRef.current = setTimeout(() => setActTaskOpen(false), 150) }} onFocus={() => { if (dropRef.current) clearTimeout(dropRef.current) }}
+                      className="flex items-center gap-1 px-2 py-1 text-[11px] font-bold rounded-sm border border-border bg-canvas-surface hover:border-brand/40 transition-colors uppercase tracking-wider">
+                      <span>{taskType === 'post_screenshot' ? '📸 Post' : '❤️ Liked'}</span>
+                      <svg className="w-3 h-3 text-ink-faint shrink-0" viewBox="0 0 12 12" fill="none"><path d="M3 5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    </button>
+                    {actTaskOpen && (
+                      <div className="absolute left-0 top-full mt-1 z-50 min-w-[110px] border border-border rounded-sm bg-canvas-surface shadow-lg overflow-hidden">
+                        <button onMouseDown={(e) => { e.preventDefault(); setActTaskOpen(false); setTaskType('post_screenshot') }} className="w-full text-left px-3 py-1.5 text-[11px] font-bold hover:bg-canvas-raised transition-colors flex items-center gap-1.5 uppercase tracking-wider">📸 Post</button>
+                        <button onMouseDown={(e) => { e.preventDefault(); setActTaskOpen(false); setTaskType('liked_post_screenshot') }} className="w-full text-left px-3 py-1.5 text-[11px] font-bold hover:bg-canvas-raised transition-colors flex items-center gap-1.5 uppercase tracking-wider">❤️ Liked</button>
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <button onClick={() => fetchSubs()} disabled={loading}
                   className="text-[13px] font-semibold text-ink-muted hover:text-brand transition-colors">
@@ -711,29 +726,31 @@ export default function Home() {
             <div className="mb-6">
               <label className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-wide text-ink-muted mb-2">
                 Task
-                <span className="relative inline-block ml-2">
-                  <select value={taskType} onChange={(e) => {
-                  const val = e.target.value as TaskType
-                  setTaskType(val)
-                  setFile(null); setRawPreview(null); setCompressedPreview(null)
-                  setCompressedBlob(null); setCompressedBytes(null)
-                  setCompressionInfo(null); setCompressWarn(null)
-                  setTaskId(null); setTxHash(null); setResult(null)
-                }}
-                    className="px-3 py-1.5 pr-6 text-[12px] font-bold rounded-sm border border-border bg-canvas-surface appearance-none cursor-pointer focus:outline-none focus:border-brand transition-colors uppercase tracking-wider">
-                    <option value="post_screenshot">📸 Post Screenshot</option>
-                    <option value="liked_post_screenshot">❤️ Liked Post Screenshot</option>
-                  </select>
-                  <svg className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-ink-faint" width="8" height="5" viewBox="0 0 8 5" fill="none">
-                    <path d="M1 1l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </span>
+                <div className="relative inline-block ml-2" ref={subTaskRef}>
+                  <button onClick={() => setSubTaskOpen(!subTaskOpen)} onBlur={() => { dropRef.current = setTimeout(() => setSubTaskOpen(false), 150) }} onFocus={() => { if (dropRef.current) clearTimeout(dropRef.current) }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-bold rounded-sm border border-border bg-canvas-surface hover:border-brand/40 transition-colors uppercase tracking-wider">
+                    <span>{taskType === 'post_screenshot' ? '📸 Post Screenshot' : '❤️ Liked Post Screenshot'}</span>
+                    <svg className="w-3 h-3 text-ink-faint shrink-0" viewBox="0 0 12 12" fill="none"><path d="M3 5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  </button>
+                  {subTaskOpen && (
+                    <div className="absolute left-0 top-full mt-1 z-50 min-w-[180px] border border-border rounded-sm bg-canvas-surface shadow-lg overflow-hidden">
+                      <button onMouseDown={(e) => { e.preventDefault(); setSubTaskOpen(false); setTaskType('post_screenshot'); setFile(null); setRawPreview(null); setCompressedPreview(null); setCompressedBlob(null); setCompressedBytes(null); setCompressionInfo(null); setCompressWarn(null); setTaskId(null); setTxHash(null); setResult(null) }} className="w-full text-left px-3 py-1.5 text-[12px] font-bold hover:bg-canvas-raised transition-colors flex items-center gap-1.5">📸 Post Screenshot</button>
+                      <button onMouseDown={(e) => { e.preventDefault(); setSubTaskOpen(false); setTaskType('liked_post_screenshot'); setFile(null); setRawPreview(null); setCompressedPreview(null); setCompressedBlob(null); setCompressedBytes(null); setCompressionInfo(null); setCompressWarn(null); setTaskId(null); setTxHash(null); setResult(null) }} className="w-full text-left px-3 py-1.5 text-[12px] font-bold hover:bg-canvas-raised transition-colors flex items-center gap-1.5">❤️ Liked Post Screenshot</button>
+                    </div>
+                  )}
+                </div>
               </label>
             </div>
 
             {submitted && (
-              <div className="mb-6 p-4 border border-emerald-300/60 bg-emerald-50 rounded-sm">
-                <p className="text-[14px] font-semibold text-emerald-800">✓ Submitted! Your screenshot is pending AI verification.</p>
+              <div className="mb-6 p-4 border border-emerald-300/60 bg-emerald-50 rounded-sm shadow-sm">
+                <div className="flex items-center gap-2.5">
+                  <svg className="w-5 h-5 text-emerald-600 shrink-0" viewBox="0 0 16 16" fill="none">
+                    <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5"/>
+                    <path d="M5 8l2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  <p className="text-[14px] font-semibold text-emerald-800">Submitted! Your screenshot is pending AI verification.</p>
+                </div>
               </div>
             )}
 
