@@ -382,18 +382,18 @@ export default function Home() {
   return (
     <main className="min-h-screen font-sans bg-canvas">
       <header className="sticky top-0 z-50 bg-canvas/90 backdrop-blur-sm border-b border-border">
-        <div className="max-w-5xl mx-auto px-2 sm:px-8 py-1 sm:py-4">
+        <div className="max-w-5xl mx-auto px-2 sm:px-8 py-0.5 sm:py-2">
           <div className="flex items-center justify-between gap-1 sm:gap-3">
             {/* Logo */}
             <div className="flex items-center shrink-0">
-              <img src="/logo-nav.png" alt="Task Verifier" className="w-[120px] h-[120px] rounded-sm object-contain" />
+              <img src="/logo-nav.png" alt="Task Verifier" className="w-[90px] h-[90px] sm:w-[70px] sm:h-[70px] rounded-sm object-contain" />
             </div>
-            {/* Nav tabs — smaller on mobile, left-aligned */}
-            <div className="flex justify-start flex-1 min-w-0">
+            {/* Nav tabs — left on mobile, centered on desktop */}
+            <div className="flex justify-start sm:justify-center flex-1 min-w-0">
               <div className="flex bg-canvas-surface rounded-lg border border-border p-[2px]">
                 {(['task', 'dashboard', 'submit'] as const).map(v => (
                   <button key={v} onClick={() => setView(v)}
-                    className={`px-1 sm:px-5 py-1 sm:py-1.5 text-[10px] sm:text-[15px] font-semibold rounded-md transition-colors ${
+                    className={`px-1 sm:px-5 py-0.5 sm:py-1.5 text-[10px] sm:text-[14px] font-semibold rounded-md transition-colors ${
                       view === v ? 'bg-brand-dark text-white shadow-sm' : 'text-ink-muted hover:text-brand'
                     }`}>
                     {viewAbbr[v]}
