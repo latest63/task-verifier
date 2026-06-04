@@ -419,7 +419,8 @@ export default function Home() {
             {/* Network dropdown */}
             <label className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-ink-faint">
               Network
-              <select value={network} onChange={async (e) => {
+              <span className="relative inline-block">
+                <select value={network} onChange={async (e) => {
                 const val = e.target.value as NetworkId
                 if (val === 'bradbury') {
                   try {
@@ -453,10 +454,12 @@ export default function Home() {
                   }
                 }
               }}
-                className="px-3 py-1.5 text-[12px] font-bold rounded-sm border border-border bg-canvas-surface appearance-none cursor-pointer focus:outline-none focus:border-brand transition-colors">
-                {hasBradbury && <option value="bradbury">⚡ Bradbury</option>}
-                {hasStudio && <option value="studionet">🧪 Studio</option>}
-              </select>
+                  className="px-3 py-1.5 pr-6 text-[12px] font-bold rounded-sm border border-border bg-canvas-surface appearance-none cursor-pointer focus:outline-none focus:border-brand transition-colors">
+                  {hasBradbury && <option value="bradbury">⚡ Bradbury</option>}
+                  {hasStudio && <option value="studionet">🧪 Studio</option>}
+                </select>
+                <svg className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-ink-faint" width="8" height="5" viewBox="0 0 8 5" fill="none"><path d="M1 1l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </span>
             </label>
           </div>
         )}
@@ -603,11 +606,16 @@ export default function Home() {
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <h2 className="text-[16px] sm:text-[18px] font-bold text-ink-deep">Recent Submissions</h2>
-                  <select value={taskType} onChange={(e) => setTaskType(e.target.value as TaskType)}
-                    className="px-2 py-1 text-[11px] font-bold rounded-sm border border-border bg-canvas-surface appearance-none cursor-pointer focus:outline-none focus:border-brand transition-colors uppercase tracking-wider">
-                    <option value="post_screenshot">📸 Post</option>
-                    <option value="liked_post_screenshot">❤️ Liked</option>
-                  </select>
+                  <span className="relative inline-block">
+                    <select value={taskType} onChange={(e) => setTaskType(e.target.value as TaskType)}
+                      className="px-2 py-1 pr-5 text-[11px] font-bold rounded-sm border border-border bg-canvas-surface appearance-none cursor-pointer focus:outline-none focus:border-brand transition-colors uppercase tracking-wider">
+                      <option value="post_screenshot">📸 Post</option>
+                      <option value="liked_post_screenshot">❤️ Liked</option>
+                    </select>
+                    <svg className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none text-ink-faint" width="8" height="5" viewBox="0 0 8 5" fill="none">
+                      <path d="M1 1l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </span>
                 </div>
                 <button onClick={() => fetchSubs()} disabled={loading}
                   className="text-[13px] font-semibold text-ink-muted hover:text-brand transition-colors">
@@ -703,7 +711,8 @@ export default function Home() {
             <div className="mb-6">
               <label className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-wide text-ink-muted mb-2">
                 Task
-                <select value={taskType} onChange={(e) => {
+                <span className="relative inline-block ml-2">
+                  <select value={taskType} onChange={(e) => {
                   const val = e.target.value as TaskType
                   setTaskType(val)
                   setFile(null); setRawPreview(null); setCompressedPreview(null)
@@ -711,10 +720,14 @@ export default function Home() {
                   setCompressionInfo(null); setCompressWarn(null)
                   setTaskId(null); setTxHash(null); setResult(null)
                 }}
-                  className="ml-2 px-3 py-1.5 text-[12px] font-bold rounded-sm border border-border bg-canvas-surface appearance-none cursor-pointer focus:outline-none focus:border-brand transition-colors uppercase tracking-wider">
-                  <option value="post_screenshot">📸 Post Screenshot</option>
-                  <option value="liked_post_screenshot">❤️ Liked Post Screenshot</option>
-                </select>
+                    className="px-3 py-1.5 pr-6 text-[12px] font-bold rounded-sm border border-border bg-canvas-surface appearance-none cursor-pointer focus:outline-none focus:border-brand transition-colors uppercase tracking-wider">
+                    <option value="post_screenshot">📸 Post Screenshot</option>
+                    <option value="liked_post_screenshot">❤️ Liked Post Screenshot</option>
+                  </select>
+                  <svg className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-ink-faint" width="8" height="5" viewBox="0 0 8 5" fill="none">
+                    <path d="M1 1l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </span>
               </label>
             </div>
 
