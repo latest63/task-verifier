@@ -349,12 +349,12 @@ export default function Home() {
             <div className="flex items-center shrink-0">
               <img src="/logo-nav.png" alt="Task Verifier" className="w-[120px] h-[120px] rounded-sm object-contain" />
             </div>
-            {/* Nav tabs — centered, smaller on mobile */}
-            <div className="flex justify-center flex-none min-w-0">
-              <div className="flex bg-canvas-surface rounded-lg border border-border p-0.5">
+            {/* Nav tabs — smaller on mobile, left-aligned */}
+            <div className="flex justify-start flex-1 min-w-0">
+              <div className="flex bg-canvas-surface rounded-lg border border-border p-[2px]">
                 {(['task', 'dashboard', 'submit'] as const).map(v => (
                   <button key={v} onClick={() => setView(v)}
-                    className={`px-1.5 sm:px-5 py-1 sm:py-1.5 text-[10px] sm:text-[15px] font-semibold rounded-md transition-colors ${
+                    className={`px-1 sm:px-5 py-1 sm:py-1.5 text-[10px] sm:text-[15px] font-semibold rounded-md transition-colors ${
                       view === v ? 'bg-brand-dark text-white shadow-sm' : 'text-ink-muted hover:text-brand'
                     }`}>
                     {viewAbbr[v]}
