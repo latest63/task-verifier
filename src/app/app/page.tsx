@@ -369,7 +369,9 @@ export default function Home() {
 
   const copyText = async (text: string) => { try { await navigator.clipboard.writeText(text) } catch {} }
 
-  const allEntries = Object.entries(subs).sort(([, a], [, b]) =>
+  const allEntries = Object.entries(subs)
+    .filter(([, s]) => view !== 'dashboard' || (taskType === 'post_screenshot' ? s._source === 'post' : s._source === 'liked'))
+    .sort(([, a], [, b]) =>
     new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
   )
   const total = allEntries.length
@@ -411,59 +413,51 @@ export default function Home() {
 
       <div className="max-w-5xl mx-auto px-4 sm:px-8 py-6 sm:py-10 md:py-14">
 
-        {/* ── Network selector (hidden on landing page) ── */}
+        {/* ── Network + Task selectors (hidden on landing page) ── */}
         {view !== 'task' && (hasBradbury || hasStudio) && (
-          <div className="mb-8 flex items-center gap-3 flex-wrap">
-            {hasBradbury && (
-              <button onClick={async () => {
-                try {
-                  await getProvider().request({
-                    method: 'wallet_switchEthereumChain',
-                    params: [{ chainId: `0x${BRADBURY.id.toString(16)}` }],
-                  })
-                  setNetwork('bradbury')
-                } catch {}
-              }}
-                className={`px-3 py-1.5 text-[12px] font-bold rounded-sm border transition-all ${
-                  network === 'bradbury'
-                    ? 'border-[#1e3a5f] bg-[#1e3a5f]/10 text-[#1e3a5f]'
-                    : 'border-border text-ink-faint hover:text-ink-muted'
-                }`}>
-                ⚡ Bradbury {contractBradbury.slice(0, 6)}…{contractBradbury.slice(-4)}
-              </button>
-            )}
-            {hasStudio && (
-              <button onClick={async () => {
-                const hexId = `0x${studionet.id.toString(16)}`
-                try {
-                  await getProvider().request({
-                    method: 'wallet_switchEthereumChain',
-                    params: [{ chainId: hexId }],
-                  })
-                  setNetwork('studionet')
-                } catch (e: any) {
-                  if (e.code === 4902) {
+          <div className="mb-8 flex items-center gap-4 flex-wrap">
+            {/* Network dropdown */}
+            <label className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-ink-faint">
+              Network
+              <select value={network} onChange={async (e) => {
+                const val = e.target.value as NetworkId
+                if (val === 'bradbury') {
+                  try {
                     await getProvider().request({
-                      method: 'wallet_addEthereumChain',
-                      params: [{
-                        chainId: hexId,
-                        chainName: 'GenLayer Studio',
-                        rpcUrls: ['https://studio.genlayer.com/api'],
-                        nativeCurrency: { name: 'GEN', symbol: 'GEN', decimals: 18 },
-                      }],
+                      method: 'wallet_switchEthereumChain',
+                      params: [{ chainId: `0x${BRADBURY.id.toString(16)}` }],
+                    })
+                    setNetwork('bradbury')
+                  } catch {}
+                } else {
+                  const hexId = `0x${studionet.id.toString(16)}`
+                  try {
+                    await getProvider().request({
+                      method: 'wallet_switchEthereumChain',
+                      params: [{ chainId: hexId }],
                     })
                     setNetwork('studionet')
+                  } catch (e: any) {
+                    if (e.code === 4902) {
+                      await getProvider().request({
+                        method: 'wallet_addEthereumChain',
+                        params: [{
+                          chainId: hexId,
+                          chainName: 'GenLayer Studio',
+                          rpcUrls: ['https://studio.genlayer.com/api'],
+                          nativeCurrency: { name: 'GEN', symbol: 'GEN', decimals: 18 },
+                        }],
+                      })
+                      setNetwork('studionet')
+                    }
                   }
                 }
               }}
-                className={`px-3 py-1.5 text-[12px] font-bold rounded-sm border transition-all ${
-                  network === 'studionet'
-                    ? 'border-indigo-500 bg-indigo-50 text-indigo-600'
-                    : 'border-border text-ink-faint hover:text-ink-muted'
-                }`}>
-                🧪 Studio {contractStudio.slice(0, 6)}…{contractStudio.slice(-4)}
-              </button>
-            )}
+                className="px-3 py-1.5 text-[12px] font-bold rounded-sm border border-border bg-canvas-surface appearance-none cursor-pointer focus:outline-none focus:border-brand transition-colors">
+                {hasBradbury && <option value="bradbury">⚡ Bradbury</option>}
+                {hasStudio && <option value="studionet">🧪 Studio</option>}
+              </select>
+            </label>
           </div>
         )}
 
@@ -607,7 +601,14 @@ export default function Home() {
             {/* Activity Feed */}
             <section>
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-[16px] sm:text-[18px] font-bold text-ink-deep">Recent Submissions</h2>
+                <div className="flex items-center gap-3">
+                  <h2 className="text-[16px] sm:text-[18px] font-bold text-ink-deep">Recent Submissions</h2>
+                  <select value={taskType} onChange={(e) => setTaskType(e.target.value as TaskType)}
+                    className="px-2 py-1 text-[11px] font-bold rounded-sm border border-border bg-canvas-surface appearance-none cursor-pointer focus:outline-none focus:border-brand transition-colors uppercase tracking-wider">
+                    <option value="post_screenshot">📸 Post</option>
+                    <option value="liked_post_screenshot">❤️ Liked</option>
+                  </select>
+                </div>
                 <button onClick={() => fetchSubs()} disabled={loading}
                   className="text-[13px] font-semibold text-ink-muted hover:text-brand transition-colors">
                   {loading ? 'Refreshing…' : 'Refresh'}
@@ -698,19 +699,23 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Task type switcher */}
+            {/* Task type dropdown */}
             <div className="mb-6">
-              <label className="block text-[13px] font-bold uppercase tracking-wide text-ink-muted mb-2">Task Type</label>
-              <div className="flex bg-canvas-surface rounded-lg border border-border p-0.5 w-fit">
-                {([['post_screenshot', 'Post Screenshot'], ['liked_post_screenshot', 'Liked Post Screenshot']] as const).map(([val, label]) => (
-                  <button key={val} onClick={() => { setTaskType(val); setFile(null); setRawPreview(null); setCompressedPreview(null); setCompressedBlob(null); setCompressedBytes(null); setCompressionInfo(null); setCompressWarn(null); setTaskId(null); setTxHash(null); setResult(null) }}
-                    className={`px-3 sm:px-5 py-1.5 text-[12px] sm:text-[14px] font-semibold rounded-md transition-colors ${
-                      taskType === val ? 'bg-brand-dark text-white shadow-sm' : 'text-ink-muted hover:text-brand'
-                    }`}>
-                    {label}
-                  </button>
-                ))}
-              </div>
+              <label className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-wide text-ink-muted mb-2">
+                Task
+                <select value={taskType} onChange={(e) => {
+                  const val = e.target.value as TaskType
+                  setTaskType(val)
+                  setFile(null); setRawPreview(null); setCompressedPreview(null)
+                  setCompressedBlob(null); setCompressedBytes(null)
+                  setCompressionInfo(null); setCompressWarn(null)
+                  setTaskId(null); setTxHash(null); setResult(null)
+                }}
+                  className="ml-2 px-3 py-1.5 text-[12px] font-bold rounded-sm border border-border bg-canvas-surface appearance-none cursor-pointer focus:outline-none focus:border-brand transition-colors uppercase tracking-wider">
+                  <option value="post_screenshot">📸 Post Screenshot</option>
+                  <option value="liked_post_screenshot">❤️ Liked Post Screenshot</option>
+                </select>
+              </label>
             </div>
 
             {submitted && (
