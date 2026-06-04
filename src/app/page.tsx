@@ -5,7 +5,7 @@ export default function LandingPage() {
     <main className="min-h-screen font-sans bg-canvas">
       {/* ── Header ── */}
       <header className="sticky top-0 z-50 bg-canvas/90 backdrop-blur-sm border-b border-border">
-        <div className="max-w-5xl mx-auto px-4 sm:px-8 py-2 sm:py-4 flex items-center justify-between gap-3">
+        <div className="max-w-5xl mx-auto px-2 sm:px-8 py-0.5 sm:py-2 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <img src="/logo-nav.png" alt="Task Verifier" className="w-[150px] h-[150px] rounded-sm object-contain" />
           </div>
