@@ -350,7 +350,7 @@ export default function Home() {
               <img src="/logo-nav.png" alt="Task Verifier" className="w-[100px] h-[100px] sm:w-[150px] sm:h-[150px] rounded-sm object-contain" />
             </div>
             {/* Nav tabs — centered, smaller on mobile */}
-            <div className="flex justify-center flex-1 min-w-0">
+            <div className="flex justify-start sm:justify-center flex-1 min-w-0">
               <div className="flex bg-canvas-surface rounded-lg border border-border p-0.5">
                 {(['task', 'dashboard', 'submit'] as const).map(v => (
                   <button key={v} onClick={() => setView(v)}
