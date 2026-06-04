@@ -5,12 +5,12 @@ export default function LandingPage() {
     <main className="min-h-screen font-sans bg-canvas">
       {/* ── Header ── */}
       <header className="sticky top-0 z-50 bg-canvas/90 backdrop-blur-sm border-b border-border">
-        <div className="max-w-5xl mx-auto px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-4">
+        <div className="max-w-5xl mx-auto px-4 sm:px-8 py-2 sm:py-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            <img src="/logo-nav.png" alt="Task Verifier" className="w-[100px] h-[100px] sm:w-[150px] sm:h-[150px] rounded-sm object-contain" />
+            <img src="/logo-nav.png" alt="Task Verifier" className="w-[70px] h-[70px] sm:w-[150px] sm:h-[150px] rounded-sm object-contain" />
           </div>
           <Link href="/app"
-            className="px-5 py-2 bg-brand-dark text-white text-[14px] font-semibold rounded-sm hover:opacity-80 transition-all whitespace-nowrap">
+            className="px-4 py-1.5 sm:px-5 sm:py-2 bg-brand-dark text-white text-[13px] sm:text-[14px] font-semibold rounded-sm hover:opacity-80 transition-all whitespace-nowrap">
             Launch App →
           </Link>
         </div>
