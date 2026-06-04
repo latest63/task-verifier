@@ -393,7 +393,7 @@ export default function Home() {
               <div className="flex bg-canvas-surface rounded-lg border border-border p-[2px]">
                 {(['task', 'dashboard', 'submit'] as const).map(v => (
                   <button key={v} onClick={() => setView(v)}
-                    className={`px-1 sm:px-5 py-0.5 sm:py-1.5 text-[10px] sm:text-[14px] font-semibold rounded-md transition-colors ${
+                    className={`px-1.5 sm:px-5 py-1 sm:py-1.5 text-[11px] sm:text-[14px] font-semibold rounded-md transition-colors ${
                       view === v ? 'bg-brand-dark text-white shadow-sm' : 'text-ink-muted hover:text-brand'
                     }`}>
                     {viewAbbr[v]}
