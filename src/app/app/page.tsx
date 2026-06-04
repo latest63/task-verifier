@@ -894,7 +894,7 @@ export default function Home() {
               ) : (
                 <div className="space-y-4">
                   {[
-                    { num: '1', icon: '❤️', title: 'Find the pinned GenLayer post', desc: 'Go to this specific post: <a href="https://x.com/genlayer/status/2060049252319961451" target="_blank" rel="noopener" class="font-bold text-brand hover:underline">x.com/genlayer/status/2060049252319961451</a>' },
+                    { num: '1', icon: '❤️', title: 'Find the pinned GenLayer post', desc: 'Go to <a href="https://x.com/genlayer/status/2060049252319961451" target="_blank" rel="noopener" class="font-bold text-brand hover:underline">this pinned post</a> on X and like it' },
                     { num: '2', icon: '👍', title: 'Like the post', desc: 'Click the heart icon to like it. The heart should turn filled/pink/red.' },
                     { num: '3', icon: '📱', title: 'Take a screenshot', desc: 'Capture the post with the filled heart icon clearly visible. Make sure "GenLayer" and the heart are both in frame.' },
                     { num: '4', icon: '📤', title: 'Upload the image', desc: 'Drop the screenshot above. The app auto-compresses it.' },
