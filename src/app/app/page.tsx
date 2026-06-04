@@ -390,11 +390,11 @@ export default function Home() {
             </div>
             {/* Nav tabs — left on mobile, centered on desktop */}
             <div className="flex justify-start sm:justify-center flex-1 min-w-0">
-              <div className="flex bg-canvas-surface rounded-lg border border-border p-[2px]">
+              <div className="flex items-center gap-1 sm:gap-2">
                 {(['task', 'dashboard', 'submit'] as const).map(v => (
                   <button key={v} onClick={() => setView(v)}
-                    className={`px-1 sm:px-5 py-0.5 sm:py-1.5 text-[10px] sm:text-[14px] font-semibold rounded-md transition-colors ${
-                      view === v ? 'bg-brand-dark text-white shadow-sm' : 'text-ink-muted hover:text-brand'
+                    className={`px-1 sm:px-3 pb-0.5 sm:pb-1 text-[10px] sm:text-[14px] font-semibold transition-colors ${
+                      view === v ? 'text-brand-dark border-b-2 border-brand-dark' : 'text-ink-muted hover:text-brand border-b-2 border-transparent'
                     }`}>
                     {viewAbbr[v]}
                   </button>
