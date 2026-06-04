@@ -1,18 +1,20 @@
 # { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }
 """
-GenLayer Image Verifier — Simple contract that checks if an uploaded screenshot
-is a legitimate post from @GenLayer on X/Twitter.
+GenLayer Liked-Post Verifier — Checks if an uploaded screenshot shows a
+specific post from @GenLayer on X/Twitter that has been liked (heart icon filled).
+
+Pinned post: https://x.com/genlayer/status/2060049252319961451
 
 User uploads a compressed image (≤50KB JPEG/PNG) as bytes in calldata.
 Contract stores it, then verify() uses AI consensus to determine if the
-image shows a real GenLayer post.
+image shows THIS specific post in a liked state.
 """
 from genlayer import *
 import typing
 import json
 from dataclasses import dataclass
 
-GENLAYER_X = "https://x.com/GenLayer"
+PINNED_POST = "https://x.com/genlayer/status/2060049252319961451"
 MAX_IMG_BYTES = 50000
 MIN_IMG_BYTES = 100
 
@@ -27,7 +29,7 @@ class Submission:
     timestamp: str
 
 
-class ImageVerifier(gl.Contract):
+class LikedPostVerifier(gl.Contract):
     submissions: TreeMap[str, Submission]
     images: TreeMap[str, bytes]       # task_id → raw image bytes
     count: u256
@@ -78,34 +80,56 @@ class ImageVerifier(gl.Contract):
         if sub.status != "pending":
             raise gl.vm.UserError("Already verified")
 
-        # Capture storage OUTSIDE the nondet block (see pitfall #32)
         img_data = self.images[task_id]
 
         def nd() -> str:
-            # Fetch GenLayer's X profile as rendered text
+            # Render the pinned post page as text for reference context
             page_text = gl.nondet.web.render(
-                GENLAYER_X,
+                PINNED_POST,
                 mode="text",
                 wait_after_loaded="5s",
             )
 
-            prompt = f"""You are a GenLayer post verifier. Analyze the attached image and the page text to determine if the image shows a real post from @GenLayer on X/Twitter.
+            prompt = f"""You are a GenLayer liked-post verifier. Analyze the attached image and the page text to determine if the image shows the SPECIFIC pinned post from @GenLayer on X/Twitter that has been liked by the viewer.
 
-PAGE TEXT (from GenLayer's X profile):
+PINNED POST URL: {PINNED_POST}
+
+PAGE TEXT (from the pinned post):
 ---
 {page_text[:4000]}
 ---
 
 INSTRUCTIONS:
-1. Does the image show an X/Twitter screenshot?
-2. Does it show a post from @GenLayer (look for "GenLayer" in the username/header area)?
-3. Does the content in the screenshot match what GenLayer posts about (from the page text above)?
-4. If the image is NOT an X/Twitter screenshot → return verified=false
-5. If the image does NOT clearly show a GenLayer post → return verified=false
-6. If unsure, return verified=false — NEVER guess
+1. Determine whether the image is a screenshot of an X/Twitter post.
+2. Determine whether the post author is GenLayer:
+   - Look for "GenLayer" and/or "@GenLayer" in the post header.
+   - The author handle must be clearly visible and match @GenLayer.
+3. Determine whether the post content in the screenshot matches this SPECIFIC pinned post:
+   - The post is about "GenLayer Portal" being live on mainnet.
+   - Compare the visible text/content in the screenshot with the page text above.
+   - The content should be substantially the same post.
+4. Determine whether the post appears to be LIKED:
+   - Look for a filled, solid, or highlighted heart icon near the post.
+   - A pink or red filled heart icon is strong evidence that the post is liked.
+   - The heart must be visibly different from an unselected/outline heart.
+5. If the image is NOT an X/Twitter post screenshot → verified=false
+6. If the author is NOT clearly GenLayer → verified=false
+7. If the post content does NOT match the pinned post → verified=false
+8. If the post does NOT clearly appear liked → verified=false
+9. If unsure about any requirement → verified=false
+10. NEVER guess.
+
+IMPORTANT:
+- The pinned post is at {PINNED_POST}
+- Focus on whether the screenshot shows THIS SPECIFIC post authored by GenLayer.
+- Focus on whether there is clear visual evidence that the post is liked.
+- A pink/red filled heart is sufficient evidence of a liked post.
+- Do not infer missing information.
+- Only return true when the evidence is clear.
 
 Return ONLY this JSON with no other text:
-{{"verified": true}}  if the image shows a GenLayer post
+
+{{"verified": true}} if the image clearly shows THIS SPECIFIC pinned GenLayer post in a liked state
 {{"verified": false}} if it does not"""
 
             result = gl.nondet.exec_prompt(prompt, images=[img_data])
@@ -126,16 +150,16 @@ Return ONLY this JSON with no other text:
 
         verdict = "verified" if raw.get("verified", False) else "rejected"
         reason = (
-            "Image confirmed as GenLayer post"
+            "Image confirmed as a liked GenLayer pinned post"
             if verdict == "verified"
-            else "Image not recognized as a GenLayer post"
+            else "Image not recognized as a liked GenLayer pinned post"
         )
 
         sub.status = verdict
         sub.verdict = reason
         self.submissions[task_id] = sub
 
-        # Clean up stored image (already verified, no need to keep)
+        # Clean up stored image
         del self.images[task_id]
 
         return {"status": verdict, "reason": reason}
@@ -174,7 +198,6 @@ Return ONLY this JSON with no other text:
 
     @gl.public.view
     def is_verified(self, task_id: str) -> bool:
-        """Quick check if a submission was verified."""
         sub = self.submissions.get(task_id)
         if sub is None:
             return False

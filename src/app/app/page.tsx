@@ -31,6 +31,7 @@ const BRADBURY = defineChain({
 
 type NetworkId = 'bradbury' | 'studionet'
 type View = 'task' | 'dashboard' | 'submit'
+type TaskType = 'post_screenshot' | 'liked_post_screenshot'
 
 const NETWORKS: Record<NetworkId, {
   label: string; color: string; chain: typeof BRADBURY;
@@ -48,7 +49,8 @@ const NETWORKS: Record<NetworkId, {
 
 type SubData = {
   submitter: string; img_size: number;
-  status: string; verdict: string; timestamp: string
+  status: string; verdict: string; timestamp: string;
+  _source?: 'post' | 'liked'
 }
 
 const fmtAddr = (a: string) => a ? `${a.slice(0, 6)}…${a.slice(-4)}` : '—'
@@ -58,14 +60,17 @@ const fmtBytes = (b: number) =>
 export default function Home() {
   const contractBradbury = process.env.NEXT_PUBLIC_VERIFIER_CONTRACT || ''
   const contractStudio = process.env.NEXT_PUBLIC_VERIFIER_CONTRACT_STUDIO || ''
-  const hasBradbury = !!contractBradbury
-  const hasStudio = !!contractStudio
+  const likedContractBradbury = process.env.NEXT_PUBLIC_LIKED_VERIFIER_CONTRACT || ''
+  const likedContractStudio = process.env.NEXT_PUBLIC_LIKED_VERIFIER_CONTRACT_STUDIO || ''
+  const hasBradbury = !!contractBradbury || !!likedContractBradbury
+  const hasStudio = !!contractStudio || !!likedContractStudio
 
   const [network, setNetwork] = useState<NetworkId>(
     hasBradbury ? 'bradbury' : hasStudio ? 'studionet' : 'bradbury'
   )
 
   const contractAddr = network === 'bradbury' ? contractBradbury : contractStudio
+  const likedAddr = network === 'bradbury' ? likedContractBradbury : likedContractStudio
   const netCfg = NETWORKS[network]
 
   // Lazy read client — created on demand inside try-catch
@@ -87,6 +92,8 @@ export default function Home() {
   const { open } = useWeb3Modal()
 
   const [view, setView] = useState<View>('task')
+
+  const [taskType, setTaskType] = useState<TaskType>('post_screenshot')
 
   // Dashboard
   const [subs, setSubs] = useState<Record<string, SubData>>({})
@@ -119,20 +126,43 @@ export default function Home() {
 
   // ── Fetch submissions ────────────────────────────────────────────
 
-  const fetchSubs = useCallback(async () => {
+  const fetchSubs = useCallback(async (likedAddr?: string) => {
     if (!contractAddr || !glClient) return
     setLoading(true)
     try {
+      // Fetch from post verifier
       const raw = await glClient.readContract({
         address: contractAddr as `0x${string}`,
         functionName: 'get_all',
         args: [],
       })
       const data = raw && typeof raw === 'object' ? raw as unknown as Record<string, SubData> : {}
-      setSubs(data)
-      return data
+      // Tag post verifier entries
+      const tagged: Record<string, SubData> = {}
+      for (const [k, v] of Object.entries(data)) {
+        tagged[k] = { ...v as SubData, _source: 'post' as const }
+      }
+
+      // Also fetch from liked post verifier if available
+      const likedAddrResolved = likedAddr || (network === 'bradbury' ? likedContractBradbury : likedContractStudio)
+      if (likedAddrResolved) {
+        try {
+          const likedRaw = await glClient.readContract({
+            address: likedAddrResolved as `0x${string}`,
+            functionName: 'get_all',
+            args: [],
+          })
+          const likedData = likedRaw && typeof likedRaw === 'object' ? likedRaw as unknown as Record<string, SubData> : {}
+          for (const [k, v] of Object.entries(likedData)) {
+            tagged[k] = { ...v as SubData, _source: 'liked' as const }
+          }
+        } catch {}
+      }
+
+      setSubs(tagged)
+      return tagged
     } catch (e) { console.error('fetch error:', e); return {} } finally { setLoading(false) }
-  }, [contractAddr, glClient])
+  }, [contractAddr, glClient, likedContractBradbury, likedContractStudio, network])
 
   useEffect(() => { fetchSubs(); const i = setInterval(fetchSubs, 10000); return () => clearInterval(i) }, [fetchSubs])
 
@@ -209,7 +239,10 @@ export default function Home() {
       const walletChainId = parseInt(walletChainHex, 16)
       const isWalletOnStudio = walletChainId === 61999
       const activeChain = isWalletOnStudio ? studionet : testnetBradbury
-      const activeContract = isWalletOnStudio ? contractStudio : contractBradbury
+      // Pick the right contract based on task type
+      const activeContract = taskType === 'liked_post_screenshot'
+        ? (isWalletOnStudio ? likedContractStudio : likedContractBradbury)
+        : (isWalletOnStudio ? contractStudio : contractBradbury)
 
       // Sync UI to wallet's actual chain
       if (isWalletOnStudio ? network !== 'studionet' : network !== 'bradbury') {
@@ -267,12 +300,18 @@ export default function Home() {
     verifyingRef.current = true
     setVerifying(id)
     try {
-      // Detect wallet's chain — don't rely on toggle state
+      // Detect wallet's chain
       const walletChainHexVerify: string = await getProvider().request({ method: 'eth_chainId' })
       const walletChainIdVerify = parseInt(walletChainHexVerify, 16)
       const isWalletOnStudioVerify = walletChainIdVerify === 61999
       const activeChainVerify = isWalletOnStudioVerify ? studionet : testnetBradbury
-      const activeContractVerify = isWalletOnStudioVerify ? contractStudio : contractBradbury
+
+      // Pick the right contract based on submission source
+      const entry = subs[id]
+      const isLiked = entry?._source === 'liked'
+      const activeContractVerify = isLiked
+        ? (isWalletOnStudioVerify ? likedContractStudio : likedContractBradbury)
+        : (isWalletOnStudioVerify ? contractStudio : contractBradbury)
 
       // Sync UI to wallet's actual chain
       if (isWalletOnStudioVerify ? network !== 'studionet' : network !== 'bradbury') {
@@ -429,15 +468,30 @@ export default function Home() {
         )}
 
         {/* ── Missing contract banner ── */}
-        {!contractAddr && view !== 'task' && (
-          <div className="py-20 text-center border border-border rounded-sm bg-canvas">
-            <p className="text-[16px] font-semibold text-ink-muted mb-1.5">No contract configured</p>
-            <p className="text-[14px] text-ink-faint max-w-md mx-auto leading-[1.5]">
-              Set <code className="text-[13px] bg-canvas-surface px-1.5 py-0.5 rounded-sm font-mono text-ink">NEXT_PUBLIC_VERIFIER_CONTRACT</code> and/or<br />
-              <code className="text-[13px] bg-canvas-surface px-1.5 py-0.5 rounded-sm font-mono text-ink">NEXT_PUBLIC_VERIFIER_CONTRACT_STUDIO</code>
-              {' '}in your environment variables.
-            </p>
-          </div>
+        {view !== 'task' && (
+          <>
+            {view === 'submit' && taskType === 'liked_post_screenshot' ? (
+              !likedAddr && (
+                <div className="py-20 text-center border border-border rounded-sm bg-canvas">
+                  <p className="text-[16px] font-semibold text-ink-muted mb-1.5">Liked Post Verifier not deployed</p>
+                  <p className="text-[14px] text-ink-faint max-w-md mx-auto leading-[1.5]">
+                    Set <code className="text-[13px] bg-canvas-surface px-1.5 py-0.5 rounded-sm font-mono text-ink">NEXT_PUBLIC_LIKED_VERIFIER_CONTRACT</code> in your environment variables.
+                  </p>
+                </div>
+              )
+            ) : (
+              !contractAddr && (
+                <div className="py-20 text-center border border-border rounded-sm bg-canvas">
+                  <p className="text-[16px] font-semibold text-ink-muted mb-1.5">No contract configured</p>
+                  <p className="text-[14px] text-ink-faint max-w-md mx-auto leading-[1.5]">
+                    Set <code className="text-[13px] bg-canvas-surface px-1.5 py-0.5 rounded-sm font-mono text-ink">NEXT_PUBLIC_VERIFIER_CONTRACT</code> and/or<br />
+                    <code className="text-[13px] bg-canvas-surface px-1.5 py-0.5 rounded-sm font-mono text-ink">NEXT_PUBLIC_VERIFIER_CONTRACT_STUDIO</code>
+                    {' '}in your environment variables.
+                  </p>
+                </div>
+              )
+            )}
+          </>
         )}
 
         {/* ── Error banner ── */}
@@ -457,7 +511,7 @@ export default function Home() {
             <div className="mb-6 sm:mb-8">
               <h1 className="text-[24px] sm:text-[30px] font-extrabold text-ink-deep leading-[1.2] tracking-[-0.75px]">GenLayer Post Verifier</h1>
               <p className="mt-2 text-[14px] sm:text-[16px] text-ink leading-[1.5] max-w-xl">
-                Take a screenshot of a <a href="https://x.com/GenLayer" target="_blank" rel="noopener" className="font-bold text-brand hover:underline">@GenLayer</a> post on X, upload it here, and our AI will check it&rsquo;s the real deal. Results live on the blockchain forever.
+                Verify screenshots of <a href="https://x.com/GenLayer" target="_blank" rel="noopener" className="font-bold text-brand hover:underline">@GenLayer</a> posts on X. Results stored on-chain via GenLayer AI consensus.
               </p>
             </div>
 
@@ -466,34 +520,54 @@ export default function Home() {
               <span className="text-[13px] text-ink-faint font-medium">Powered by GenLayer AI consensus</span>
             </div>
 
-            <div className="space-y-6">
-              {[
-                { num: '1', icon: '📸', title: 'Screenshot a post', desc: 'Find any post from @GenLayer on X and take a screenshot.' },
-                { num: '2', icon: '📤', title: 'Upload it here', desc: 'Drop the screenshot. The app shrinks it down automatically so it fits.' },
-                { num: '3', icon: '🔗', title: 'Submit', desc: 'Connect your wallet and submit. Your screenshot goes straight to the blockchain.' },
-                { num: '4', icon: '🤖', title: 'AI checks it', desc: 'Our AI validators look at the screenshot and check if it really is a GenLayer post.' },
-                { num: '5', icon: '✅', title: 'Get the result', desc: 'The answer (verified or rejected) is stored permanently. Check the Activity tab.' },
-              ].map(step => (
-                <div key={step.num} className="flex gap-4 sm:gap-5 p-4 sm:p-5 border border-border rounded-sm bg-canvas hover:bg-canvas-surface transition-colors">
-                  <div className="shrink-0 w-9 h-9 flex items-center justify-center rounded-sm font-bold text-[15px] text-white"
+            <div className="grid sm:grid-cols-2 gap-4 sm:gap-6">
+              {/* Task 1 */}
+              <button onClick={() => { setView('submit'); setTaskType('post_screenshot') }}
+                className="group text-left p-5 sm:p-6 border border-border rounded-sm bg-canvas hover:bg-canvas-surface hover:border-brand/40 transition-all text-start">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="shrink-0 w-10 h-10 flex items-center justify-center rounded-sm font-bold text-lg text-white"
                     style={{ backgroundColor: '#1e3a5f' }}>
-                    {step.num}
+                    1
                   </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-lg">{step.icon}</span>
-                      <h3 className="text-[15px] sm:text-[16px] font-bold text-ink-deep">{step.title}</h3>
-                    </div>
-                    <p className="text-[13px] sm:text-[14px] text-ink leading-[1.6]">{step.desc}</p>
+                  <div>
+                    <h3 className="text-[16px] sm:text-[18px] font-bold text-ink-deep">Post Screenshot</h3>
+                    <p className="text-[12px] text-ink-faint mt-0.5">GenLayer post verification</p>
                   </div>
                 </div>
-              ))}
+                <p className="text-[13px] sm:text-[14px] text-ink leading-[1.6]">
+                  Take a screenshot of any post from @GenLayer on X and verify it&rsquo;s the real deal.
+                </p>
+                <div className="mt-3 flex items-center gap-1.5 text-[12px] font-semibold text-brand group-hover:gap-2 transition-all">
+                  Start task →
+                </div>
+              </button>
+
+              {/* Task 2 */}
+              <button onClick={() => { setView('submit'); setTaskType('liked_post_screenshot') }}
+                className="group text-left p-5 sm:p-6 border border-border rounded-sm bg-canvas hover:bg-canvas-surface hover:border-brand/40 transition-all text-start">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="shrink-0 w-10 h-10 flex items-center justify-center rounded-sm font-bold text-lg text-white"
+                    style={{ backgroundColor: '#1e3a5f' }}>
+                    2
+                  </div>
+                  <div>
+                    <h3 className="text-[16px] sm:text-[18px] font-bold text-ink-deep">Liked Post Screenshot</h3>
+                    <p className="text-[12px] text-ink-faint mt-0.5">GenLayer liked-post verification</p>
+                  </div>
+                </div>
+                <p className="text-[13px] sm:text-[14px] text-ink leading-[1.6]">
+                  Take a screenshot of a liked post from @GenLayer on X — the heart icon should be filled.
+                </p>
+                <div className="mt-3 flex items-center gap-1.5 text-[12px] font-semibold text-brand group-hover:gap-2 transition-all">
+                  Start task →
+                </div>
+              </button>
             </div>
           </>
         )}
 
         {/* ════════ DASHBOARD ════════ */}
-        {contractAddr && view === 'dashboard' && (
+        {(contractAddr || likedAddr) && view === 'dashboard' && (
           <>
             <div className="mb-6 sm:mb-8">
               <h1 className="text-[24px] sm:text-[30px] font-extrabold text-ink-deep leading-[1.2] tracking-[-0.75px]">Activity</h1>
@@ -534,7 +608,7 @@ export default function Home() {
             <section>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-[16px] sm:text-[18px] font-bold text-ink-deep">Recent Submissions</h2>
-                <button onClick={fetchSubs} disabled={loading}
+                <button onClick={() => fetchSubs()} disabled={loading}
                   className="text-[13px] font-semibold text-ink-muted hover:text-brand transition-colors">
                   {loading ? 'Refreshing…' : 'Refresh'}
                 </button>
@@ -607,16 +681,35 @@ export default function Home() {
         )}
 
         {/* ════════ SUBMIT ════════ */}
-        {contractAddr && view === 'submit' && (
+        {(taskType === 'liked_post_screenshot' ? likedAddr : contractAddr) && view === 'submit' && (
           <>
             <div className="mb-6 sm:mb-10">
-              <h1 className="text-[24px] sm:text-[30px] font-extrabold text-ink-deep leading-[1.2] tracking-[-0.75px]">Verify a GenLayer Post</h1>
+              <h1 className="text-[24px] sm:text-[30px] font-extrabold text-ink-deep leading-[1.2] tracking-[-0.75px]">
+                {taskType === 'liked_post_screenshot' ? 'Verify a Liked GenLayer Post' : 'Verify a GenLayer Post'}
+              </h1>
               <p className="mt-2 text-[14px] sm:text-[16px] text-ink leading-[1.5] max-w-xl">
-                Upload a screenshot of a <a href="https://x.com/GenLayer" target="_blank" rel="noopener" className="font-bold text-brand hover:underline">@GenLayer</a> post. The app auto-compresses it and submits to GenLayer AI for on-chain verification.
+                {taskType === 'liked_post_screenshot'
+                  ? 'Upload a screenshot of a liked post from @GenLayer on X. The AI checks if the post is real and the heart icon is filled.'
+                  : 'Upload a screenshot of a post from @GenLayer on X. The AI verifies it\'s a real GenLayer post.'}
               </p>
               <div className="mt-2 flex items-center gap-2 text-[11px] text-ink-faint font-mono">
                 <span className={`inline-block w-2 h-2 rounded-full ${network === 'bradbury' ? 'bg-[#1e3a5f]' : 'bg-indigo-500'}`} />
-                {netCfg.label} · {contractAddr.slice(0, 10)}…{contractAddr.slice(-6)}
+                {netCfg.label} · {taskType === 'liked_post_screenshot' ? 'Liked Post' : 'Post'} Verifier
+              </div>
+            </div>
+
+            {/* Task type switcher */}
+            <div className="mb-6">
+              <label className="block text-[13px] font-bold uppercase tracking-wide text-ink-muted mb-2">Task Type</label>
+              <div className="flex bg-canvas-surface rounded-lg border border-border p-0.5 w-fit">
+                {([['post_screenshot', 'Post Screenshot'], ['liked_post_screenshot', 'Liked Post Screenshot']] as const).map(([val, label]) => (
+                  <button key={val} onClick={() => { setTaskType(val); setFile(null); setRawPreview(null); setCompressedPreview(null); setCompressedBlob(null); setCompressedBytes(null); setCompressionInfo(null); setCompressWarn(null); setTaskId(null); setTxHash(null); setResult(null) }}
+                    className={`px-3 sm:px-5 py-1.5 text-[12px] sm:text-[14px] font-semibold rounded-md transition-colors ${
+                      taskType === val ? 'bg-brand-dark text-white shadow-sm' : 'text-ink-muted hover:text-brand'
+                    }`}>
+                    {label}
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -764,6 +857,62 @@ export default function Home() {
                 </div>
               </div>
             )}
+
+            {/* ══════ Task-specific instructions ══════ */}
+            <div className="mt-8 sm:mt-12 border-t border-border pt-6 sm:pt-8">
+              <h2 className="text-[16px] sm:text-[18px] font-bold text-ink-deep mb-4">How to complete this task</h2>
+
+              {taskType === 'post_screenshot' ? (
+                <div className="space-y-4">
+                  {[
+                    { num: '1', icon: '📸', title: 'Find a GenLayer post', desc: 'Go to X/Twitter and find any post from <strong>@GenLayer</strong>. It can be any post they\'ve made.' },
+                    { num: '2', icon: '📱', title: 'Take a screenshot', desc: 'Capture the post clearly — the username "GenLayer" and the post content should be visible.' },
+                    { num: '3', icon: '📤', title: 'Upload the image', desc: 'Drop the screenshot above. The app auto-compresses it to fit on-chain.' },
+                    { num: '4', icon: '🔗', title: 'Submit to the blockchain', desc: 'Connect your wallet and submit. Your screenshot goes to the Post Verifier contract on GenLayer.' },
+                    { num: '5', icon: '🤖', title: 'AI checks it', desc: 'GenLayer validators analyze the screenshot using AI consensus. Results are stored permanently on-chain.' },
+                  ].map(step => (
+                    <div key={step.num} className="flex gap-3 sm:gap-4 p-3 sm:p-4 border border-border rounded-sm bg-canvas">
+                      <div className="shrink-0 w-8 h-8 flex items-center justify-center rounded-sm font-bold text-[14px] text-white"
+                        style={{ backgroundColor: '#1e3a5f' }}>
+                        {step.num}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className="text-base">{step.icon}</span>
+                          <h3 className="text-[14px] sm:text-[15px] font-bold text-ink-deep">{step.title}</h3>
+                        </div>
+                        <p className="text-[12px] sm:text-[13px] text-ink leading-[1.6]" dangerouslySetInnerHTML={{ __html: step.desc }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {[
+                    { num: '1', icon: '❤️', title: 'Find the pinned GenLayer post', desc: 'Go to this specific post: <a href="https://x.com/genlayer/status/2060049252319961451" target="_blank" rel="noopener" class="font-bold text-brand hover:underline">x.com/genlayer/status/2060049252319961451</a>' },
+                    { num: '2', icon: '👍', title: 'Like the post', desc: 'Click the heart icon to like it. The heart should turn filled/pink/red.' },
+                    { num: '3', icon: '📱', title: 'Take a screenshot', desc: 'Capture the post with the filled heart icon clearly visible. Make sure "GenLayer" and the heart are both in frame.' },
+                    { num: '4', icon: '📤', title: 'Upload the image', desc: 'Drop the screenshot above. The app auto-compresses it.' },
+                    { num: '5', icon: '🔗', title: 'Submit to the blockchain', desc: 'Connect your wallet and submit. Your screenshot goes to the Liked Post Verifier contract.' },
+                    { num: '6', icon: '🤖', title: 'AI checks it', desc: 'GenLayer validators check if the screenshot shows THIS specific post with a filled heart. Results are on-chain.' },
+                  ].map(step => (
+                    <div key={step.num} className="flex gap-3 sm:gap-4 p-3 sm:p-4 border border-border rounded-sm bg-canvas">
+                      <div className="shrink-0 w-8 h-8 flex items-center justify-center rounded-sm font-bold text-[14px] text-white"
+                        style={{ backgroundColor: '#1e3a5f' }}>
+                        {step.num}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className="text-base">{step.icon}</span>
+                          <h3 className="text-[14px] sm:text-[15px] font-bold text-ink-deep">{step.title}</h3>
+                        </div>
+                        <p className="text-[12px] sm:text-[13px] text-ink leading-[1.6]" dangerouslySetInnerHTML={{ __html: step.desc }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </>
         )}
       </div>
