@@ -17,11 +17,11 @@ export default function ConnectWalletInner() {
   if (isConnected && address) {
     return (
       <button
-        onClick={() => disconnect()}
-        className="font-semibold shrink-0"
+        onClick={() => open()}
+        className="font-semibold shrink-0 flex items-center gap-1"
         style={{
           height: '32px',
-          padding: '0 14px',
+          padding: '0 10px',
           fontSize: '12px',
           borderRadius: '6px',
           backgroundColor: '#f5f5f0',
@@ -31,9 +31,15 @@ export default function ConnectWalletInner() {
           transition: 'all 0.2s ease',
           fontWeight: 600,
         }}
-        title="Disconnect"
+        title="Wallet"
       >
-        {address.slice(0, 6)}…{address.slice(-4)}
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
+          <line x1="1" y1="10" x2="23" y2="10" />
+        </svg>
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
       </button>
     )
   }

@@ -343,25 +343,28 @@ export default function Home() {
   return (
     <main className="min-h-screen font-sans bg-canvas">
       <header className="sticky top-0 z-50 bg-canvas/90 backdrop-blur-sm border-b border-border">
-        <div className="max-w-5xl mx-auto px-4 sm:px-8 py-2 sm:py-4">
-          {/* Top row: logo + wallet */}
-          <div className="flex items-center justify-between gap-3 mb-2 sm:mb-0">
-            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        <div className="max-w-5xl mx-auto px-2 sm:px-8 py-1 sm:py-4">
+          <div className="flex items-center justify-between gap-1 sm:gap-3">
+            {/* Logo */}
+            <div className="flex items-center shrink-0">
               <img src="/logo-nav.png" alt="Task Verifier" className="w-[70px] h-[70px] sm:w-[150px] sm:h-[150px] rounded-sm object-contain" />
             </div>
-            <ConnectWallet />
-          </div>
-          {/* Nav tabs row */}
-          <div className="flex justify-center sm:justify-end">
-            <div className="flex bg-canvas-surface rounded-lg border border-border p-0.5 sm:p-1">
-              {(['task', 'dashboard', 'submit'] as const).map(v => (
-                <button key={v} onClick={() => setView(v)}
-                  className={`px-2.5 sm:px-5 py-1 sm:py-1.5 text-[12px] sm:text-[15px] font-semibold rounded-md transition-colors ${
-                    view === v ? 'bg-brand-dark text-white shadow-sm' : 'text-ink-muted hover:text-brand'
-                  }`}>
-                  {viewAbbr[v]}
-                </button>
-              ))}
+            {/* Nav tabs — centered, smaller on mobile */}
+            <div className="flex justify-center flex-1 min-w-0">
+              <div className="flex bg-canvas-surface rounded-lg border border-border p-0.5">
+                {(['task', 'dashboard', 'submit'] as const).map(v => (
+                  <button key={v} onClick={() => setView(v)}
+                    className={`px-1.5 sm:px-5 py-1 sm:py-1.5 text-[10px] sm:text-[15px] font-semibold rounded-md transition-colors ${
+                      view === v ? 'bg-brand-dark text-white shadow-sm' : 'text-ink-muted hover:text-brand'
+                    }`}>
+                    {viewAbbr[v]}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {/* Wallet — compact icon button */}
+            <div className="shrink-0">
+              <ConnectWallet />
             </div>
           </div>
         </div>
