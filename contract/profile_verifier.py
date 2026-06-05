@@ -1,15 +1,16 @@
 # { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }
 """
 GenLayer Profile Verifier — Verifies an X/Twitter handle belongs to a wallet.
-User tweets a one-time code, uploads a screenshot + tweet URL, and AI validators
-confirm the tweet is real and contains the correct code.
+User tweets a one-time code, provides the tweet URL, and AI validators
+fetch the tweet page to confirm the code is present.
 
 Flow:
 1. User generates a random code in the app (6-char alphanumeric, 5min expiry)
 2. User tweets: "Verifying @taskverifier: {CODE}"
-3. User uploads screenshot + tweet URL
-4. AI validators check: screenshot shows a real tweet from @{handle} with that code,
-   AND the URL matches the tweet in the screenshot
+3. User provides the tweet URL
+4. AI validators fetch the tweet page via web.render() and check for:
+   - The tweet is from @{handle}
+   - The tweet contains the verification code
 5. On success, the wallet -> x_handle mapping is stored on-chain
 """
 from genlayer import *
@@ -17,8 +18,6 @@ import typing
 import json
 from dataclasses import dataclass
 
-MAX_IMG_BYTES = 50000
-MIN_IMG_BYTES = 100
 MIN_HANDLE_LEN = 2
 MAX_HANDLE_LEN = 30
 CODE_LEN = 6
@@ -31,7 +30,6 @@ class Submission:
     x_handle: str
     code: str
     tweet_url: str
-    img_size: u256
     status: str           # "pending", "verified", "rejected"
     verdict: str
     timestamp: str
@@ -39,7 +37,6 @@ class Submission:
 
 class ProfileVerifier(gl.Contract):
     submissions: TreeMap[str, Submission]
-    images: TreeMap[str, bytes]       # task_id -> raw image bytes
     verified_handles: TreeMap[str, str]  # wallet_hex -> x_handle
     count: u256
 
@@ -50,20 +47,6 @@ class ProfileVerifier(gl.Contract):
 
     @gl.public.write
     def submit(self, img_data: bytes, x_handle: str, code: str, tweet_url: str) -> str:
-        if len(img_data) < MIN_IMG_BYTES:
-            raise gl.vm.UserError(
-                f"Image too small (min {MIN_IMG_BYTES} bytes)"
-            )
-        if len(img_data) > MAX_IMG_BYTES:
-            raise gl.vm.UserError(
-                f"Image too large (max {MAX_IMG_BYTES} bytes)"
-            )
-
-        is_jpeg = len(img_data) > 2 and img_data[:2] == b"\xff\xd8"
-        is_png = len(img_data) > 4 and img_data[:4] == b"\x89PNG"
-        if not (is_jpeg or is_png):
-            raise gl.vm.UserError("Invalid image (JPEG/PNG magic bytes required)")
-
         # Validate handle
         if len(x_handle) < MIN_HANDLE_LEN or len(x_handle) > MAX_HANDLE_LEN:
             raise gl.vm.UserError(f"Invalid handle length (min {MIN_HANDLE_LEN}, max {MAX_HANDLE_LEN})")
@@ -84,17 +67,15 @@ class ProfileVerifier(gl.Contract):
             x_handle=x_handle,
             code=code,
             tweet_url=tweet_url,
-            img_size=u256(len(img_data)),
             status="pending",
             verdict="",
             timestamp=now,
         )
-        self.images[task_id] = img_data
         self.count = u256(int(self.count) + 1)
 
         return task_id
 
-    # ---- Verify (AI Consensus) -----------------------------------------------
+    # ---- Verify (AI Consensus) — URL Scraping, No Image Needed ----------------
 
     @gl.public.write
     def verify(self, task_id: str) -> typing.Any:
@@ -148,9 +129,9 @@ Return ONLY this JSON with no other text:
 
         verdict = "verified" if raw.get("verified", False) else "rejected"
         reason = (
-            f"X handle @{sub.x_handle} verified - screenshot matches the tweet URL with correct code"
+            f"X handle @{sub.x_handle} verified - tweet URL confirmed with correct code"
             if verdict == "verified"
-            else f"Could not confirm @{sub.x_handle} - screenshot does not show a valid tweet matching the URL with the verification code"
+            else f"Could not confirm @{sub.x_handle} - tweet at URL does not contain the verification code"
         )
 
         sub.status = verdict
@@ -160,9 +141,6 @@ Return ONLY this JSON with no other text:
         # If verified, store the wallet -> handle mapping (lowercase key for case-insensitive lookup)
         if verdict == "verified":
             self.verified_handles[sub.submitter.as_hex.lower()] = sub.x_handle
-
-        # Clean up stored image
-        del self.images[task_id]
 
         return {"status": verdict, "reason": reason}
 
@@ -178,7 +156,6 @@ Return ONLY this JSON with no other text:
             "x_handle": sub.x_handle,
             "code": sub.code,
             "tweet_url": sub.tweet_url,
-            "img_size": int(sub.img_size),
             "status": sub.status,
             "verdict": sub.verdict,
             "timestamp": sub.timestamp,
@@ -192,7 +169,6 @@ Return ONLY this JSON with no other text:
                 "x_handle": v.x_handle,
                 "code": v.code,
                 "tweet_url": v.tweet_url,
-                "img_size": int(v.img_size),
                 "status": v.status,
                 "verdict": v.verdict,
                 "timestamp": v.timestamp,

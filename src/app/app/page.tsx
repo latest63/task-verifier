@@ -1018,67 +1018,13 @@ export default function Home() {
 
                 {verifyCode && countdown > 0 && (
                   <div className="mb-6">
-                    <label className="block text-[13px] font-bold uppercase tracking-wide text-ink-muted mb-3">Upload Screenshot of Your Tweet</label>
-                    <label className="relative flex flex-col items-center justify-center w-full h-40 rounded-sm border border-dashed cursor-pointer transition-colors" style={{borderColor: profileRawPreview ? 'rgba(30,58,95,0.3)' : undefined, backgroundColor: profileRawPreview ? '#eff6ff' : undefined}}>
-                      {profileRawPreview ? (
-                        <img src={profileRawPreview} alt="Preview" className="absolute inset-0 w-full h-full object-contain rounded-sm p-2" />
-                      ) : (
-                        <div className="text-center">
-                          <div className="text-2xl mb-1">📸</div>
-                          <span className="text-[14px] font-semibold text-ink-muted">Drop your tweet screenshot here</span>
-                          <span className="block text-[12px] text-ink-faint mt-0.5">PNG, JPEG, WebP · max 20MB</span>
-                        </div>
-                      )}
-                      <input type="file" accept="image/png,image/jpeg,image/webp" onChange={(e) => {
-                        const f = e.target.files?.[0]
-                        if (!f) return
-                        if (!f.type.startsWith('image/')) { setProfileError('Please select an image file'); return }
-                        if (f.size > 20 * 1024 * 1024) { setProfileError('File too large (max 20MB)'); return }
-                        setProfileError(null); setProfileFile(f); setProfileRawPreview(URL.createObjectURL(f))
-                        const img = new Image()
-                        img.onload = () => {
-                          let w = img.naturalWidth, h = img.naturalHeight, MAX = 640
-                          if (w > MAX || h > MAX) { if (w > h) { h = Math.round(h * MAX / w); w = MAX } else { w = Math.round(w * MAX / h); h = MAX } }
-                          const canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h
-                          const ctx = canvas.getContext('2d'); if (!ctx) return; ctx.drawImage(img, 0, 0, w, h)
-                          let quality = 0.7, attempts = 0
-                          const tryC = () => {
-                            canvas.toBlob((blob) => {
-                              if (!blob) return
-                              setProfileCompressionInfo({ originalSize: f.size, compressedSize: blob.size, ratio: Math.round((1 - blob.size / f.size) * 100), width: w, height: h })
-                              if (blob.size > 50000 && attempts < 10) { quality -= 0.1; attempts++; tryC(); return }
-                              setProfileCompressWarn(blob.size > 50000 ? 'Warning: Image exceeds 50KB limit.' : null)
-                              blob.arrayBuffer().then(buf => { setProfileCompressedBlob(blob); setProfileCompressedBytes(new Uint8Array(buf)); setProfileCompressedPreview(URL.createObjectURL(blob)) })
-                            }, 'image/jpeg', quality)
-                          }; tryC()
-                        }; img.src = URL.createObjectURL(f)
-                      }} className="absolute inset-0 opacity-0 cursor-pointer" />
-                    </label>
-                    {profileRawPreview && (
-                      <button type="button" onClick={() => { setProfileFile(null); setProfileRawPreview(null); setProfileCompressedPreview(null); setProfileCompressedBlob(null); setProfileCompressedBytes(null); setProfileCompressionInfo(null); setProfileCompressWarn(null); setProfileTaskId(null); setProfileTxHash(null); setProfileResult(null); setTweetUrl('') }}
-                        className="mt-1.5 text-[12px] font-semibold text-ink-faint hover:text-brand transition-colors">Remove</button>
-                    )}
-                    {profileCompressionInfo && (
-                      <div className="mt-3 border border-border rounded-sm overflow-hidden">
-                        <div className="px-3 py-2 bg-canvas-surface border-b border-border flex items-center gap-2">
-                          <span className="text-[11px] font-bold uppercase tracking-wider text-ink-muted">Image</span>
-                          <span className="text-[10px] text-ink-faint ml-auto font-mono">w:{profileCompressionInfo.width} x h:{profileCompressionInfo.height}</span>
-                        </div>
-                        <div className="p-3 grid grid-cols-2 gap-2 text-[12px] font-mono">
-                          <div><span className="text-ink-faint">Original:</span> <span className="font-bold text-ink">{(profileCompressionInfo.originalSize / 1024).toFixed(1)}KB</span></div>
-                          <div><span className="text-ink-faint">Compressed:</span> <span className="font-bold" style={{color: profileCompressedBytes && profileCompressedBytes.length > 50000 ? '#dc2626' : '#059669'}}>{(profileCompressionInfo.compressedSize / 1024).toFixed(1)}KB</span></div>
-                          <div><span className="text-ink-faint">Ratio:</span> <span className="font-bold" style={{color: '#1e3a5f'}}>-{profileCompressionInfo.ratio}%</span></div>
-                          <div><span className="text-ink-faint">Limit:</span> <span style={{color: profileCompressedBytes && profileCompressedBytes.length > 50000 ? '#dc2626' : undefined}}>50KB (Bradbury)</span></div>
-                        </div>
-                      </div>
-                    )}
-                    <div className="mb-4 mt-4">
-                      <label className="block text-[13px] font-bold uppercase tracking-wide text-ink-muted mb-2">Tweet URL</label>
-                      <input type="text" value={tweetUrl} onChange={(e) => setTweetUrl(e.target.value.trim())}
-                        placeholder="https://x.com/yourhandle/status/..."
-                        className="w-full px-3 py-2 text-[14px] border border-border rounded-sm bg-canvas-surface focus:outline-none focus:border-brand transition-colors placeholder:text-ink-faint font-mono text-[13px]" />
-                      <p className="text-[11px] text-ink-faint mt-1">Paste the full URL of your tweet. Must start with <code className="font-mono text-[11px] bg-canvas-raised px-1">https://x.com/</code> or <code className="font-mono text-[11px] bg-canvas-raised px-1">https://twitter.com/</code></p>
-                    </div>
+                    <label className="block text-[13px] font-bold uppercase tracking-wide text-ink-muted mb-2">Tweet URL</label>
+                    <input type="text" value={tweetUrl} onChange={(e) => setTweetUrl(e.target.value.trim())}
+                      placeholder="https://x.com/yourhandle/status/..."
+                      className="w-full px-3 py-2 text-[14px] border border-border rounded-sm bg-canvas-surface focus:outline-none focus:border-brand transition-colors placeholder:text-ink-faint font-mono text-[13px]" />
+                    <p className="text-[11px] text-ink-faint mt-1">Paste the full URL of your tweet. Must start with <code className="font-mono text-[11px] bg-canvas-raised px-1">https://x.com/</code> or <code className="font-mono text-[11px] bg-canvas-raised px-1">https://twitter.com/</code></p>
+                  </div>
+                )}
                     {profileSubmitted && (
                       <div className="mb-4 p-4 border border-emerald-300/60 bg-emerald-50 rounded-sm shadow-sm">
                         <div className="flex items-center gap-2.5">
@@ -1099,7 +1045,7 @@ export default function Home() {
                     )}
                     <div className="flex gap-3">
                       <button onClick={async () => {
-                        if (!address || !walletClient || !profileCompressedBytes || !profileAddr) return
+                        if (!address || !walletClient || !profileAddr || !tweetUrl) return
                         setProfileSubmitting(true); setProfileTxHash(null); setProfileTaskId(null); setProfileResult(null)
                         try {
                           const activeChain = network === 'bradbury' ? testnetBradbury : studionet as any
@@ -1107,7 +1053,7 @@ export default function Home() {
                           const hash = await glWrite.writeContract({
                             address: profileAddr as `0x${string}`,
                             functionName: 'submit',
-                            args: [profileCompressedBytes, xHandle, verifyCode, tweetUrl],
+                            args: [new Uint8Array([0]), xHandle, verifyCode, tweetUrl],
                             value: 0n,
                           })
                           setProfileTxHash(hash as string); setProfileSubmitted(true)
@@ -1123,17 +1069,16 @@ export default function Home() {
                               }
                             } catch {}
                           }
-                          setProfileFile(null); setProfileRawPreview(null); setProfileCompressedPreview(null); setProfileCompressedBlob(null); setProfileCompressedBytes(null); setProfileCompressionInfo(null); setProfileCompressWarn(null); setTweetUrl('')
+                          setTweetUrl('')
                         } catch (e: any) { setProfileError(e?.cause?.message || e?.shortMessage || e?.message || 'Submission failed') }
                         finally { setProfileSubmitting(false) }
                       }}
-                        disabled={profileSubmitting || !profileCompressedBytes || (countdown > 0 && !tweetUrl)}
+                        disabled={profileSubmitting || !tweetUrl}
                         className="flex-1 py-2.5 text-white text-[15px] font-bold rounded-sm transition-all" style={{
-                          backgroundColor: !profileCompressedBytes ? 'rgba(0,0,0,0.25)' : profileSubmitting ? 'rgba(30,58,95,0.7)' : '#1e3a5f',
-                          cursor: !profileCompressedBytes ? 'not-allowed' : profileSubmitting ? 'wait' : undefined
+                          backgroundColor: !tweetUrl ? 'rgba(0,0,0,0.25)' : profileSubmitting ? 'rgba(30,58,95,0.7)' : '#1e3a5f',
+                          cursor: !tweetUrl ? 'not-allowed' : profileSubmitting ? 'wait' : undefined
                         }}>
-                        {!profileCompressedBytes ? 'Select an image first'
-                          : !tweetUrl && countdown > 0 ? 'Add tweet URL first'
+                        {!tweetUrl ? 'Add tweet URL'
                           : profileSubmitting ? 'Submitting to GenLayer…' : 'Submit Proof →'}
                       </button>
                       {profileTaskId && !profileResult && (
@@ -1162,8 +1107,6 @@ export default function Home() {
                         <button onClick={generateCode} className="px-4 py-2 bg-brand-dark text-white text-[13px] font-bold rounded-sm hover:opacity-80 transition-all">Generate New Code</button>
                       </div>
                     )}
-                  </div>
-                )}
               </>
             ) : (
               !isConnected ? (
