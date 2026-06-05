@@ -104,35 +104,33 @@ class ProfileVerifier(gl.Contract):
         if sub.status != "pending":
             raise gl.vm.UserError("Already verified")
 
-        img_data = self.images[task_id]
-
         def nd() -> str:
-            prompt = f"""You are a GenLayer X/Twitter profile verifier. Analyze the attached image to determine if it shows a real X/Twitter post from the account @{sub.x_handle} that contains the verification code "{sub.code}" AND whose URL matches {sub.tweet_url}.
+            # Fetch the tweet page to verify the code and handle are present
+            page_content = gl.nondet.web.render(sub.tweet_url)
+
+            prompt = f"""You are a GenLayer X/Twitter profile verifier. Determine if the X/Twitter post at the URL below is from @{sub.x_handle} and contains the verification code "{sub.code}".
 
 X HANDLE TO VERIFY: @{sub.x_handle}
 VERIFICATION CODE: {sub.code}
 TWEET URL: {sub.tweet_url}
 
-INSTRUCTIONS:
-1. Does the image show an X/Twitter post screenshot?
-2. Is the post author clearly @{sub.x_handle}? Look for the handle or display name in the post header.
-3. Does the post text contain the exact verification code "{sub.code}"?
-4. Does the post in the screenshot correspond to the URL {sub.tweet_url}? The handle and content should match what is at that URL.
-5. If the image is NOT an X/Twitter screenshot -> verified=false
-6. If the post author is NOT @{sub.x_handle} -> verified=false
-7. If the verification code "{sub.code}" is NOT present in the post text -> verified=false
-8. If the tweet does NOT match the URL {sub.tweet_url} (wrong handle or content) -> verified=false
-9. If unsure about any requirement -> verified=false
-10. NEVER guess.
+PAGE CONTENT FROM THE URL:
+{page_content[:5000]}
 
-The code "{sub.code}" must appear as a continuous, unbroken string in the tweet text.
+INSTRUCTIONS:
+1. Does the page content show a tweet/post from @{sub.x_handle}? Look for the handle, display name, or @username in the content.
+2. Does the tweet text contain the exact verification code "{sub.code}" as a continuous, unbroken string?
+3. If the page is an error, login wall, or doesn't contain a tweet -> verified=false
+4. If the tweet author is NOT @{sub.x_handle} -> verified=false
+5. If the verification code "{sub.code}" is NOT present in the tweet text -> verified=false
+6. If unsure about any requirement -> verified=false
+7. NEVER guess.
 
 Return ONLY this JSON with no other text:
-
-{{"verified": true}} if the image clearly shows a real tweet from @{sub.x_handle} containing the code "{sub.code}" AND matching {sub.tweet_url}
+{{"verified": true}} if the tweet from @{sub.x_handle} contains the code "{sub.code}"
 {{"verified": false}} if it does not"""
 
-            result = gl.nondet.exec_prompt(prompt, images=[img_data])
+            result = gl.nondet.exec_prompt(prompt)
             result = result.strip()
             if result.startswith("```json"):
                 result = result[7:]
