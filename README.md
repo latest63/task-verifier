@@ -39,6 +39,7 @@ Two sample contracts are included:
 |---|---|---|
 | Post Verifier | [`contract/task_verifier.py`](./contract/task_verifier.py) | Verify screenshots of any @GenLayer post |
 | Liked Post Verifier | [`contract/liked_post_verifier.py`](./contract/liked_post_verifier.py) | Verify screenshots of a liked @GenLayer post (heart must be filled) |
+| Profile Verifier | [`contract/profile_verifier.py`](./contract/profile_verifier.py) | Verify X handle ownership via tweet + screenshot |
 
 ```bash
 # Install GenLayer CLI
@@ -47,9 +48,10 @@ npm install -g genlayer
 # Switch to Bradbury testnet
 genlayer network testnet-bradbury
 
-# Deploy both contracts
+# Deploy all contracts
 genlayer contract deploy contract/task_verifier.py
 genlayer contract deploy contract/liked_post_verifier.py
+genlayer contract deploy contract/profile_verifier.py
 ```
 
 **Requirements:**
@@ -70,6 +72,7 @@ Create `.env.local`:
 ```
 NEXT_PUBLIC_VERIFIER_CONTRACT=0x_YOUR_POST_VERIFIER_ADDRESS
 NEXT_PUBLIC_LIKED_VERIFIER_CONTRACT=0x_YOUR_LIKED_POST_VERIFIER_ADDRESS
+NEXT_PUBLIC_PROFILE_VERIFIER_CONTRACT=0x_YOUR_PROFILE_VERIFIER_ADDRESS
 ```
 
 ### 3. Run locally
@@ -84,7 +87,7 @@ Open [http://localhost:3000](http://localhost:3000) for the landing page, then n
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/latest63/task-verifier)
 
-Set the same env vars on Vercel: `NEXT_PUBLIC_VERIFIER_CONTRACT` and `NEXT_PUBLIC_LIKED_VERIFIER_CONTRACT`.
+Set the same env vars on Vercel: `NEXT_PUBLIC_VERIFIER_CONTRACT`, `NEXT_PUBLIC_LIKED_VERIFIER_CONTRACT`, and `NEXT_PUBLIC_PROFILE_VERIFIER_CONTRACT`.
 
 ### 5. Share with your community
 
@@ -98,6 +101,7 @@ Your users visit your deployed URL and submit screenshots of their X actions. Af
 |---|---|
 | Post Verification (sample) | ✅ Live |
 | Liked Post Verification | ✅ Live |
+| Profile Verification | ✅ Live |
 | Comment Verification | 🔜 Upcoming |
 | Retweet Verification | 🔜 Upcoming |
 
@@ -123,6 +127,7 @@ The contract and frontend are designed to be extended. Each action type follows 
 | `NEXT_PUBLIC_LIKED_VERIFIER_CONTRACT` | No | Your Liked Post Verifier contract address on Bradbury |
 | `NEXT_PUBLIC_VERIFIER_CONTRACT_STUDIO` | No | Contract address on StudioNet (optional testnet) |
 | `NEXT_PUBLIC_LIKED_VERIFIER_CONTRACT_STUDIO` | No | Liked Post Verifier address on StudioNet |
+| `NEXT_PUBLIC_PROFILE_VERIFIER_CONTRACT` | No | Profile Verifier contract address on Bradbury |
 | `NEXT_PUBLIC_WALLETCONNECT_ID` | No | WalletConnect project ID (QR/mobile wallets) |
 
 ## Customizing for your use case

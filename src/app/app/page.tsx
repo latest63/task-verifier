@@ -30,7 +30,7 @@ const BRADBURY = defineChain({
 // ── ABI ────────────────────────────────────────────────────────────
 
 type NetworkId = 'bradbury' | 'studionet'
-type View = 'task' | 'dashboard' | 'submit'
+type View = 'task' | 'dashboard' | 'submit' | 'profile'
 type TaskType = 'post_screenshot' | 'liked_post_screenshot'
 
 const NETWORKS: Record<NetworkId, {
@@ -62,7 +62,8 @@ export default function Home() {
   const contractStudio = process.env.NEXT_PUBLIC_VERIFIER_CONTRACT_STUDIO || ''
   const likedContractBradbury = process.env.NEXT_PUBLIC_LIKED_VERIFIER_CONTRACT || ''
   const likedContractStudio = process.env.NEXT_PUBLIC_LIKED_VERIFIER_CONTRACT_STUDIO || ''
-  const hasBradbury = !!contractBradbury || !!likedContractBradbury
+  const profileContract = process.env.NEXT_PUBLIC_PROFILE_VERIFIER_CONTRACT || ''
+  const hasBradbury = !!contractBradbury || !!likedContractBradbury || !!profileContract
   const hasStudio = !!contractStudio || !!likedContractStudio
 
   const [network, setNetwork] = useState<NetworkId>(
@@ -130,6 +131,53 @@ export default function Home() {
   const actTaskRef = useRef<HTMLDivElement>(null)
   const subTaskRef = useRef<HTMLDivElement>(null)
   const dropRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Profile verification state
+  const [xHandle, setXHandle] = useState('')
+  const [verifyCode, setVerifyCode] = useState('')
+  const [codeExpiresAt, setCodeExpiresAt] = useState<number | null>(null)
+  const [countdown, setCountdown] = useState(0)
+  const [profileFile, setProfileFile] = useState<File | null>(null)
+  const [profileRawPreview, setProfileRawPreview] = useState<string | null>(null)
+  const [profileCompressedBlob, setProfileCompressedBlob] = useState<Blob | null>(null)
+  const [profileCompressedPreview, setProfileCompressedPreview] = useState<string | null>(null)
+  const [profileCompressedBytes, setProfileCompressedBytes] = useState<Uint8Array | null>(null)
+  const [profileCompressionInfo, setProfileCompressionInfo] = useState<{ originalSize: number; compressedSize: number; ratio: number; width: number; height: number } | null>(null)
+  const [profileCompressWarn, setProfileCompressWarn] = useState<string | null>(null)
+  const [profileTxHash, setProfileTxHash] = useState<string | null>(null)
+  const [profileTaskId, setProfileTaskId] = useState<string | null>(null)
+  const [profileResult, setProfileResult] = useState<{ status: string; reason: string } | null>(null)
+  const [profileSubmitting, setProfileSubmitting] = useState(false)
+  const [profileSubmitted, setProfileSubmitted] = useState(false)
+  const [profileError, setProfileError] = useState<string | null>(null)
+  const [profileVerifying, setProfileVerifying] = useState(false)
+  const profileCanvasRef = useRef<HTMLCanvasElement>(null)
+
+  const generateCode = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+    let code = ''
+    const array = new Uint8Array(6)
+    crypto.getRandomValues(array)
+    for (let i = 0; i < 6; i++) code += chars[array[i] % chars.length]
+    setVerifyCode(code)
+    setCodeExpiresAt(Date.now() + 5 * 60 * 1000)
+    setCountdown(300)
+  }
+
+  // 5-min countdown
+  useEffect(() => {
+    if (!codeExpiresAt) return
+    const interval = setInterval(() => {
+      const remaining = Math.max(0, Math.floor((codeExpiresAt - Date.now()) / 1000))
+      setCountdown(remaining)
+      if (remaining <= 0) {
+        clearInterval(interval)
+        setVerifyCode('')
+        setCodeExpiresAt(null)
+      }
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [codeExpiresAt])
 
   useEffect(() => {
     const handle = (e: MouseEvent) => {
@@ -398,7 +446,7 @@ export default function Home() {
   const pendingN = allEntries.filter(([, s]) => s.status === 'pending').length
   const rejectedN = allEntries.filter(([, s]) => s.status === 'rejected').length
 
-  const viewAbbr: Record<View, string> = { task: 'Task', dashboard: 'Activity', submit: 'Submit' }
+  const viewAbbr: Record<View, string> = { task: 'Task', dashboard: 'Activity', submit: 'Submit', profile: 'Profile' }
 
   return (
     <main className="min-h-screen font-sans bg-canvas">
@@ -412,7 +460,7 @@ export default function Home() {
             {/* Nav tabs — centered on mobile + desktop */}
             <div className="flex justify-center flex-1 min-w-0 mr-8 sm:mr-0">
               <div className="flex bg-canvas-surface rounded-lg border border-border p-[2px]">
-                {(['task', 'dashboard', 'submit'] as const).map(v => (
+                {(['task', 'dashboard', 'submit', 'profile'] as const).map(v => (
                   <button key={v} onClick={() => setView(v)}
                     className={`px-1.5 sm:px-5 py-1 sm:py-1.5 text-[11px] sm:text-[14px] font-semibold rounded-md transition-colors ${
                       view === v ? 'bg-brand-dark text-white shadow-sm' : 'text-ink-muted hover:text-brand'
