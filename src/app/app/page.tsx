@@ -632,10 +632,21 @@ export default function Home() {
 
             {verifiedHandle ? (
               <div className="mb-6 p-5 border border-emerald-200 bg-emerald-50/60 rounded-sm flex items-center gap-4">
-                <div className="shrink-0 w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center">
-                  <svg className="w-6 h-6 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" /><circle cx="12" cy="7" r="4" />
-                  </svg>
+                <div className="shrink-0 w-12 h-12 rounded-full overflow-hidden bg-emerald-100 flex items-center justify-center">
+                  <img src={`https://unavatar.io/x/${verifiedHandle}`}
+                       alt={`@${verifiedHandle}`}
+                       className="w-full h-full object-cover"
+                       onError={(e) => {
+                         const target = e.currentTarget
+                         target.style.display = 'none'
+                         const fallback = target.nextElementSibling as HTMLElement | null
+                         if (fallback) fallback.style.display = 'flex'
+                       }} />
+                  <div className="hidden w-full h-full items-center justify-center bg-emerald-100">
+                    <svg className="w-6 h-6 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" /><circle cx="12" cy="7" r="4" />
+                    </svg>
+                  </div>
                 </div>
                 <div>
                   <div className="flex items-center gap-2">

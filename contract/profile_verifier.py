@@ -47,6 +47,13 @@ class ProfileVerifier(gl.Contract):
 
     @gl.public.write
     def submit(self, img_data: bytes, x_handle: str, code: str, tweet_url: str) -> str:
+        # Wallet already verified? Cannot re-verify with a different handle
+        existing = self.verified_handles.get(gl.message.sender_address.as_hex.lower(), "")
+        if existing != "":
+            raise gl.vm.UserError(
+                f"wallet already verified as @{existing}"
+            )
+
         # Validate handle
         if len(x_handle) < MIN_HANDLE_LEN or len(x_handle) > MAX_HANDLE_LEN:
             raise gl.vm.UserError(f"Invalid handle length (min {MIN_HANDLE_LEN}, max {MAX_HANDLE_LEN})")
@@ -84,6 +91,13 @@ class ProfileVerifier(gl.Contract):
             raise gl.vm.UserError("Submission not found")
         if sub.status != "pending":
             raise gl.vm.UserError("Already verified")
+
+        # Wallet already verified? Cannot re-verify with a different handle
+        existing = self.verified_handles.get(sub.submitter.as_hex.lower(), "")
+        if existing != "":
+            raise gl.vm.UserError(
+                f"wallet already verified as @{existing}"
+            )
 
         def nd() -> str:
             # Fetch the tweet page to verify the code and handle are present
