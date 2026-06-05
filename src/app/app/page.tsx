@@ -153,6 +153,9 @@ export default function Home() {
   const [profileSubmitted, setProfileSubmitted] = useState(false)
   const [profileError, setProfileError] = useState<string | null>(null)
   const [profileVerifying, setProfileVerifying] = useState(false)
+  const [tweetUrl, setTweetUrl] = useState('')
+  const [verifiedHandle, setVerifiedHandle] = useState<string | null>(null)
+  const [checkingHandle, setCheckingHandle] = useState(false)
   const profileCanvasRef = useRef<HTMLCanvasElement>(null)
 
   const generateCode = () => {
@@ -180,6 +183,28 @@ export default function Home() {
     }, 1000)
     return () => clearInterval(interval)
   }, [codeExpiresAt])
+
+  // Check if wallet already has verified handle
+  useEffect(() => {
+    if (!isConnected || !address || !profileAddr || !glClient || view !== 'profile') {
+      setVerifiedHandle(null)
+      return
+    }
+    setCheckingHandle(true)
+    glClient.readContract({
+      address: profileAddr as `0x${string}`,
+      functionName: 'get_x_handle',
+      args: [address.toLowerCase()],
+    }).then((handle: any) => {
+      if (handle && typeof handle === 'string' && handle.length > 0) {
+        setVerifiedHandle(handle)
+      } else {
+        setVerifiedHandle(null)
+      }
+    }).catch(() => {
+      setVerifiedHandle(null)
+    }).finally(() => setCheckingHandle(false))
+  }, [isConnected, address, profileAddr, glClient, view])
 
   useEffect(() => {
     const handle = (e: MouseEvent) => {
@@ -568,6 +593,37 @@ export default function Home() {
               </p>
             </div>
 
+            {verifiedHandle && (
+              <div className="mb-6 p-5 border border-emerald-200 bg-emerald-50/60 rounded-sm flex items-center gap-4">
+                <div className="shrink-0 w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center">
+                  <svg className="w-6 h-6 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" /><circle cx="12" cy="7" r="4" />
+                  </svg>
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[15px] font-bold text-emerald-800">@{verifiedHandle}</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-200 text-emerald-700 border border-emerald-300">Verified</span>
+                  </div>
+                  <p className="text-[13px] text-emerald-700 mt-0.5">Your X handle is verified on-chain</p>
+                </div>
+              </div>
+            )}
+
+            {verifiedHandle && !verifyCode && (
+              <button onClick={() => { setVerifiedHandle(null); setXHandle(''); setVerifyCode(''); setCodeExpiresAt(null); setCountdown(0); setTweetUrl(''); setProfileFile(null); setProfileRawPreview(null); setProfileCompressedPreview(null); setProfileCompressedBlob(null); setProfileCompressedBytes(null); setProfileCompressionInfo(null); setProfileCompressWarn(null); setProfileTaskId(null); setProfileTxHash(null); setProfileResult(null) }}
+                className="mb-6 px-4 py-2 border border-border text-[13px] font-semibold rounded-sm hover:bg-canvas-surface transition-colors">
+                Verify a different handle
+              </button>
+            )}
+
+            {checkingHandle && (
+              <div className="mb-6 p-4 border border-border rounded-sm bg-canvas-surface flex items-center gap-3">
+                <div className="w-4 h-4 border-2 border-brand/30 border-t-brand rounded-full animate-spin" />
+                <span className="text-[13px] text-ink-muted">Checking verification status…</span>
+              </div>
+            )}
+
             {profileError && (
               <div className="mb-6 p-3 sm:p-4 border border-red-300/70 bg-red-50 rounded-sm flex items-start justify-between gap-2 shadow-sm">
                 <div className="flex items-start gap-2.5">
@@ -586,7 +642,7 @@ export default function Home() {
                 <p className="text-[15px] sm:text-[16px] font-semibold text-ink-muted mb-1">Connect your wallet</p>
                 <p className="text-[13px] sm:text-[14px] text-ink-faint px-3">Connect to verify your X profile.</p>
               </button>
-            ) : !verifyCode ? (
+            ) : !verifyCode && !verifiedHandle ? (
               <>
                 <div className="mb-6">
                   <label className="block text-[13px] font-bold uppercase tracking-wide text-ink-muted mb-2">X / Twitter Handle</label>
@@ -601,7 +657,7 @@ export default function Home() {
                   </div>
                 </div>
               </>
-            ) : (
+            ) : verifyCode ? (
               <>
                 <div className="mb-6 p-4 sm:p-5 border border-brand/30 bg-brand/5 rounded-sm">
                   <div className="flex items-center justify-between mb-3">
@@ -666,7 +722,7 @@ export default function Home() {
                       }} className="absolute inset-0 opacity-0 cursor-pointer" />
                     </label>
                     {profileRawPreview && (
-                      <button type="button" onClick={() => { setProfileFile(null); setProfileRawPreview(null); setProfileCompressedPreview(null); setProfileCompressedBlob(null); setProfileCompressedBytes(null); setProfileCompressionInfo(null); setProfileCompressWarn(null); setProfileTaskId(null); setProfileTxHash(null); setProfileResult(null) }}
+                      <button type="button" onClick={() => { setProfileFile(null); setProfileRawPreview(null); setProfileCompressedPreview(null); setProfileCompressedBlob(null); setProfileCompressedBytes(null); setProfileCompressionInfo(null); setProfileCompressWarn(null); setProfileTaskId(null); setProfileTxHash(null); setProfileResult(null); setTweetUrl('') }}
                         className="mt-1.5 text-[12px] font-semibold text-ink-faint hover:text-brand transition-colors">Remove</button>
                     )}
                     {profileCompressionInfo && (
@@ -681,10 +737,19 @@ export default function Home() {
                           <div><span className="text-ink-faint">Ratio:</span> <span className="font-bold" style={{color: '#1e3a5f'}}>-{profileCompressionInfo.ratio}%</span></div>
                           <div><span className="text-ink-faint">Limit:</span> <span style={{color: profileCompressedBytes && profileCompressedBytes.length > 50000 ? '#dc2626' : undefined}}>50KB (Bradbury)</span></div>
                         </div>
-                        {profileCompressWarn && <div className="px-3 py-2 bg-red-50 border-t border-red-200 text-[12px] text-red-700 font-medium">{profileCompressWarn}</div>}
-                      </div>
-                    )}
-                    {profileSubmitted && (
+                    {profileCompressWarn && <div className="px-3 py-2 bg-red-50 border-t border-red-200 text-[12px] text-red-700 font-medium">{profileCompressWarn}</div>}
+                    </div>
+                  )}
+                  {countdown > 0 && (
+                    <div className="mb-4">
+                      <label className="block text-[13px] font-bold uppercase tracking-wide text-ink-muted mb-2">Tweet URL</label>
+                      <input type="text" value={tweetUrl} onChange={(e) => setTweetUrl(e.target.value.trim())}
+                        placeholder="https://x.com/yourhandle/status/..."
+                        className="w-full px-3 py-2 text-[14px] border border-border rounded-sm bg-canvas-surface focus:outline-none focus:border-brand transition-colors placeholder:text-ink-faint font-mono text-[13px]" />
+                      <p className="text-[11px] text-ink-faint mt-1">Paste the full URL of your tweet. Must start with <code className="font-mono text-[11px] bg-canvas-raised px-1">https://x.com/</code> or <code className="font-mono text-[11px] bg-canvas-raised px-1">https://twitter.com/</code></p>
+                    </div>
+                  )}
+                  {profileSubmitted && (
                       <div className="mt-3 p-4 border border-emerald-300/60 bg-emerald-50 rounded-sm shadow-sm">
                         <div className="flex items-center gap-2.5">
                           <svg className="w-5 h-5 text-emerald-600 shrink-0" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5"/><path d="M5 8l2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -712,7 +777,7 @@ export default function Home() {
                           const hash = await glWrite.writeContract({
                             address: profileAddr as `0x${string}`,
                             functionName: 'submit',
-                            args: [profileCompressedBytes, xHandle, verifyCode],
+                            args: [profileCompressedBytes, xHandle, verifyCode, tweetUrl],
                             value: 0n,
                           })
                           setProfileTxHash(hash as string); setProfileSubmitted(true)
@@ -728,16 +793,18 @@ export default function Home() {
                               }
                             } catch {}
                           }
-                          setProfileFile(null); setProfileRawPreview(null); setProfileCompressedPreview(null); setProfileCompressedBlob(null); setProfileCompressedBytes(null); setProfileCompressionInfo(null); setProfileCompressWarn(null)
+                          setProfileFile(null); setProfileRawPreview(null); setProfileCompressedPreview(null); setProfileCompressedBlob(null); setProfileCompressedBytes(null); setProfileCompressionInfo(null); setProfileCompressWarn(null); setTweetUrl('')
                         } catch (e: any) { setProfileError(e?.cause?.message || e?.shortMessage || e?.message || 'Submission failed') }
                         finally { setProfileSubmitting(false) }
                       }}
-                        disabled={profileSubmitting || !profileCompressedBytes}
+                        disabled={profileSubmitting || !profileCompressedBytes || (countdown > 0 && !tweetUrl)}
                         className="flex-1 py-2.5 text-white text-[15px] font-bold rounded-sm transition-all" style={{
                           backgroundColor: !profileCompressedBytes ? 'rgba(0,0,0,0.25)' : profileSubmitting ? 'rgba(30,58,95,0.7)' : '#1e3a5f',
                           cursor: !profileCompressedBytes ? 'not-allowed' : profileSubmitting ? 'wait' : undefined
                         }}>
-                        {!profileCompressedBytes ? 'Select an image first' : profileSubmitting ? 'Submitting to GenLayer…' : 'Submit Proof →'}
+                        {!profileCompressedBytes ? 'Select an image first'
+                          : !tweetUrl && countdown > 0 ? 'Add tweet URL first'
+                          : profileSubmitting ? 'Submitting to GenLayer…' : 'Submit Proof →'}
                       </button>
                       {profileTaskId && !profileResult && (
                         <button onClick={async () => {
@@ -768,7 +835,7 @@ export default function Home() {
                   </div>
                 )}
               </>
-            )}
+            ) : null}
           </>
         )}
 
