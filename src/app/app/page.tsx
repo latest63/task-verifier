@@ -63,8 +63,9 @@ export default function Home() {
   const likedContractBradbury = process.env.NEXT_PUBLIC_LIKED_VERIFIER_CONTRACT || ''
   const likedContractStudio = process.env.NEXT_PUBLIC_LIKED_VERIFIER_CONTRACT_STUDIO || ''
   const profileContract = process.env.NEXT_PUBLIC_PROFILE_VERIFIER_CONTRACT || ''
+  const profileContractStudio = process.env.NEXT_PUBLIC_PROFILE_VERIFIER_CONTRACT_STUDIO || ''
   const hasBradbury = !!contractBradbury || !!likedContractBradbury || !!profileContract
-  const hasStudio = !!contractStudio || !!likedContractStudio
+  const hasStudio = !!contractStudio || !!likedContractStudio || !!profileContractStudio
 
   const [network, setNetwork] = useState<NetworkId>(
     hasBradbury ? 'bradbury' : hasStudio ? 'studionet' : 'bradbury'
@@ -72,6 +73,7 @@ export default function Home() {
 
   const contractAddr = network === 'bradbury' ? contractBradbury : contractStudio
   const likedAddr = network === 'bradbury' ? likedContractBradbury : likedContractStudio
+  const profileAddr = network === 'bradbury' ? profileContract : profileContractStudio
   const netCfg = NETWORKS[network]
 
   // Lazy read client — created on demand inside try-catch
@@ -326,11 +328,11 @@ export default function Home() {
         account: address as `0x${string}`,
         provider: getProvider(),
       })
-
-      const hash = await glWriteClient.writeContract({
-        address: activeContract as `0x${string}`,
-        functionName: 'submit',
-        args: [compressedBytes],  // genlayer-js expects Uint8Array for bytes type
+                            const glWriteClient = createClient({ chain: network === 'bradbury' ? testnetBradbury as any : studionet as any, account: address as `0x${string}`, provider: getProvider() })
+                            const result: any = await glWriteClient.writeContract({
+                              address: profileAddr as `0x${string}`,
+                            functionName: 'submit',
+                            args: [profileCompressedBytes, xHandle, verifyCode],
         value: 0n,
       })
       setTxHash(hash as string)
@@ -521,15 +523,15 @@ export default function Home() {
         {view !== 'task' && (
           <>
             {view === 'submit' && taskType === 'liked_post_screenshot' ? (
-              !likedAddr && (
-                <div className="py-20 text-center border border-border rounded-sm bg-canvas">
-                  <p className="text-[16px] font-semibold text-ink-muted mb-1.5">Liked Post Verifier not deployed</p>
-                  <p className="text-[14px] text-ink-faint max-w-md mx-auto leading-[1.5]">
-                    Set <code className="text-[13px] bg-canvas-surface px-1.5 py-0.5 rounded-sm font-mono text-ink">NEXT_PUBLIC_LIKED_VERIFIER_CONTRACT</code> in your environment variables.
-                  </p>
-                </div>
-              )
-            ) : (
+{view === 'profile' && !profileAddr && (
+              <div className="py-20 text-center border border-border rounded-sm bg-canvas">
+                <p className="text-[16px] font-semibold text-ink-muted mb-1.5">Profile Verifier not deployed</p>
+                <p className="text-[14px] text-ink-faint max-w-md mx-auto leading-[1.5]">
+                  Set <code className="text-[13px] bg-canvas-surface px-1.5 py-0.5 rounded-sm font-mono text-ink">NEXT_PUBLIC_PROFILE_VERIFIER_CONTRACT</code>{network === 'studionet' ? ' or NEXT_PUBLIC_PROFILE_VERIFIER_CONTRACT_STUDIO' : ''} in your environment variables.
+                </p>
+              </div>
+            )}
+        {view === 'profile' && profileAddr && (
               !contractAddr && (
                 <div className="py-20 text-center border border-border rounded-sm bg-canvas">
                   <p className="text-[16px] font-semibold text-ink-muted mb-1.5">No contract configured</p>

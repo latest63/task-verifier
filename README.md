@@ -128,6 +128,7 @@ The contract and frontend are designed to be extended. Each action type follows 
 | `NEXT_PUBLIC_VERIFIER_CONTRACT_STUDIO` | No | Contract address on StudioNet (optional testnet) |
 | `NEXT_PUBLIC_LIKED_VERIFIER_CONTRACT_STUDIO` | No | Liked Post Verifier address on StudioNet |
 | `NEXT_PUBLIC_PROFILE_VERIFIER_CONTRACT` | No | Profile Verifier contract address on Bradbury |
+| `NEXT_PUBLIC_PROFILE_VERIFIER_CONTRACT_STUDIO` | No | Profile Verifier contract address on StudioNet |
 | `NEXT_PUBLIC_WALLETCONNECT_ID` | No | WalletConnect project ID (QR/mobile wallets) |
 
 ## Customizing for your use case
