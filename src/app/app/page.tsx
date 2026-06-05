@@ -1287,6 +1287,30 @@ export default function Home() {
                     </div>
                   ))}
                 </div>
+              ) : taskType === 'profile_verification' ? (
+                <div className="space-y-4">
+                  {[
+                    { num: '1', icon: '✏️', title: 'Generate a code', desc: 'Click <strong>Generate Code</strong> — a 6-character code appears. It expires in 5 minutes.' },
+                    { num: '2', icon: '🐦', title: 'Tweet the code', desc: 'Go to X/Twitter and post a tweet containing the code. Example: <code class="text-[12px] bg-canvas-surface px-1 py-0.5 rounded-sm font-mono">Verifying @taskverifier: {code}</code>' },
+                    { num: '3', icon: '🔗', title: 'Paste the tweet URL', desc: 'Copy your tweet\'s URL from X and paste it in the field above.' },
+                    { num: '4', icon: '🔗', title: 'Submit to the blockchain', desc: 'Connect your wallet and submit. The tweet URL goes to the Profile Verifier contract on GenLayer.' },
+                    { num: '5', icon: '🤖', title: 'AI checks the tweet', desc: 'GenLayer validators fetch the tweet page and confirm it contains the code. No image needed — all validators can read text.' },
+                  ].map(step => (
+                    <div key={step.num} className="flex gap-3 sm:gap-4 p-3 sm:p-4 border border-border rounded-sm bg-canvas">
+                      <div className="shrink-0 w-8 h-8 flex items-center justify-center rounded-sm font-bold text-[14px] text-white"
+                        style={{ backgroundColor: '#1e3a5f' }}>
+                        {step.num}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className="text-base">{step.icon}</span>
+                          <h3 className="text-[14px] sm:text-[15px] font-bold text-ink-deep">{step.title}</h3>
+                        </div>
+                        <p className="text-[12px] sm:text-[13px] text-ink leading-[1.6]" dangerouslySetInnerHTML={{ __html: step.desc }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               ) : (
                 <div className="space-y-4">
                   {[
