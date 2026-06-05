@@ -186,7 +186,7 @@ export default function Home() {
 
   // Check if wallet already has verified handle
   useEffect(() => {
-    if (!isConnected || !address || !profileAddr || !glClient || view !== 'profile') {
+    if (!isConnected || !address || !profileAddr || !glClient || (view !== 'profile' && (view !== 'submit' || taskType !== 'profile_verification'))) {
       setVerifiedHandle(null)
       return
     }
@@ -204,7 +204,7 @@ export default function Home() {
     }).catch(() => {
       setVerifiedHandle(null)
     }).finally(() => setCheckingHandle(false))
-  }, [isConnected, address, profileAddr, glClient, view])
+  }, [isConnected, address, profileAddr, glClient, view, taskType])
 
   useEffect(() => {
     const handle = (e: MouseEvent) => {
@@ -727,7 +727,12 @@ export default function Home() {
                     2
                   </div>
                   <div>
-                    <h3 className="text-[16px] sm:text-[18px] font-bold text-ink-deep">Verify X Profile</h3>
+                    <h3 className="text-[16px] sm:text-[18px] font-bold text-ink-deep flex items-center gap-2">
+                      Verify X Profile
+                      {verifiedHandle && (
+                        <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-300">Done ✓</span>
+                      )}
+                    </h3>
                     <p className="text-[12px] text-ink-faint mt-0.5">On-chain X handle verification</p>
                   </div>
                 </div>
@@ -957,6 +962,21 @@ export default function Home() {
                     <p className="text-[15px] sm:text-[16px] font-semibold text-ink-muted mb-1">Connect your wallet</p>
                     <p className="text-[13px] sm:text-[14px] text-ink-faint px-3">Connect to verify your X profile on-chain.</p>
                   </button>
+                ) : verifiedHandle ? (
+                  <div className="mb-6 p-5 border border-emerald-200 bg-emerald-50/60 rounded-sm flex items-center gap-4">
+                    <div className="shrink-0 w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center">
+                      <svg className="w-5 h-5 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" /><circle cx="12" cy="7" r="4" />
+                      </svg>
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[15px] font-bold text-emerald-800">@{verifiedHandle}</span>
+                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-200 text-emerald-700 border border-emerald-300">Verified</span>
+                      </div>
+                      <p className="text-[13px] text-emerald-700 mt-0.5">Your X handle is already verified on-chain. Each wallet can only link one handle.</p>
+                    </div>
+                  </div>
                 ) : !verifyCode ? (
                   <div className="mb-6">
                     <label className="block text-[13px] font-bold uppercase tracking-wide text-ink-muted mb-2">X / Twitter Handle</label>

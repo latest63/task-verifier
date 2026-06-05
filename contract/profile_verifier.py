@@ -159,9 +159,9 @@ Return ONLY this JSON with no other text:
         sub.verdict = reason
         self.submissions[task_id] = sub
 
-        # If verified, store the wallet -> handle mapping
+        # If verified, store the wallet -> handle mapping (lowercase key for case-insensitive lookup)
         if verdict == "verified":
-            self.verified_handles[sub.submitter.as_hex] = sub.x_handle
+            self.verified_handles[sub.submitter.as_hex.lower()] = sub.x_handle
 
         # Clean up stored image
         del self.images[task_id]
