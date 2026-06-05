@@ -31,9 +31,14 @@ Zero API keys, no subscriptions, no hidden costs.
 
 ## Quick start
 
-### 1. Deploy your contract
+### 1. Deploy your contracts
 
-The sample contract is at [`contract/task_verifier.py`](./contract/task_verifier.py). It verifies GenLayer X post screenshots.
+Two sample contracts are included:
+
+| Contract | File | Purpose |
+|---|---|---|
+| Post Verifier | [`contract/task_verifier.py`](./contract/task_verifier.py) | Verify screenshots of any @GenLayer post |
+| Liked Post Verifier | [`contract/liked_post_verifier.py`](./contract/liked_post_verifier.py) | Verify screenshots of a liked @GenLayer post (heart must be filled) |
 
 ```bash
 # Install GenLayer CLI
@@ -42,8 +47,9 @@ npm install -g genlayer
 # Switch to Bradbury testnet
 genlayer network testnet-bradbury
 
-# Deploy
+# Deploy both contracts
 genlayer contract deploy contract/task_verifier.py
+genlayer contract deploy contract/liked_post_verifier.py
 ```
 
 **Requirements:**
@@ -62,7 +68,8 @@ npm install
 Create `.env.local`:
 
 ```
-NEXT_PUBLIC_VERIFIER_CONTRACT=0x_YOUR_DEPLOYED_CONTRACT_ADDRESS
+NEXT_PUBLIC_VERIFIER_CONTRACT=0x_YOUR_POST_VERIFIER_ADDRESS
+NEXT_PUBLIC_LIKED_VERIFIER_CONTRACT=0x_YOUR_LIKED_POST_VERIFIER_ADDRESS
 ```
 
 ### 3. Run locally
@@ -77,7 +84,7 @@ Open [http://localhost:3000](http://localhost:3000) for the landing page, then n
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/latest63/task-verifier)
 
-Set the same env var on Vercel: `NEXT_PUBLIC_VERIFIER_CONTRACT` = your contract address.
+Set the same env vars on Vercel: `NEXT_PUBLIC_VERIFIER_CONTRACT` and `NEXT_PUBLIC_LIKED_VERIFIER_CONTRACT`.
 
 ### 5. Share with your community
 
@@ -90,8 +97,8 @@ Your users visit your deployed URL and submit screenshots of their X actions. Af
 | Feature | Status |
 |---|---|
 | Post Verification (sample) | ✅ Live |
+| Liked Post Verification | ✅ Live |
 | Comment Verification | 🔜 Upcoming |
-| Like Verification | 🔜 Upcoming |
 | Retweet Verification | 🔜 Upcoming |
 
 The contract and frontend are designed to be extended. Each action type follows the same pattern — upload a screenshot, AI validators check it, result is stored on-chain.
@@ -112,16 +119,18 @@ The contract and frontend are designed to be extended. Each action type follows 
 
 | Variable | Required | Description |
 |---|---|---|
-| `NEXT_PUBLIC_VERIFIER_CONTRACT` | Yes | Your deployed contract address on Bradbury |
+| `NEXT_PUBLIC_VERIFIER_CONTRACT` | Yes | Your Post Verifier contract address on Bradbury |
+| `NEXT_PUBLIC_LIKED_VERIFIER_CONTRACT` | No | Your Liked Post Verifier contract address on Bradbury |
 | `NEXT_PUBLIC_VERIFIER_CONTRACT_STUDIO` | No | Contract address on StudioNet (optional testnet) |
+| `NEXT_PUBLIC_LIKED_VERIFIER_CONTRACT_STUDIO` | No | Liked Post Verifier address on StudioNet |
 | `NEXT_PUBLIC_WALLETCONNECT_ID` | No | WalletConnect project ID (QR/mobile wallets) |
 
 ## Customizing for your use case
 
-The GenLayer Post Verification is a **sample** — the simplest instantiation of the pattern. To verify different X actions:
+The GenLayer Post Verification and Liked Post Verification are **samples** — the simplest instantiation of the pattern. To verify different X actions:
 
-1. **Deploy your own contract** — modify `contract/task_verifier.py` to handle the action type you care about
-2. **Update the frontend** — point `NEXT_PUBLIC_VERIFIER_CONTRACT` to your new contract
+1. **Deploy your own contract** — modify `contract/task_verifier.py` or `contract/liked_post_verifier.py` to handle the action type you care about
+2. **Update the frontend** — point `NEXT_PUBLIC_VERIFIER_CONTRACT` and/or `NEXT_PUBLIC_LIKED_VERIFIER_CONTRACT` to your contracts
 3. **The AI validators** handle the rest — no API fees, no additional infrastructure
 
 ---

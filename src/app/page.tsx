@@ -135,15 +135,15 @@ export default function LandingPage() {
               <span className="inline-block mt-2 text-[11px] font-bold uppercase tracking-wider text-ink-faint bg-canvas-surface px-2 py-0.5 rounded-sm">Upcoming</span>
             </div>
 
-            <div className="p-4 sm:p-5 border border-border rounded-sm bg-canvas opacity-60">
+            <div className="p-4 sm:p-5 border border-emerald-300/60 bg-emerald-50/40 rounded-sm">
               <div className="flex items-center gap-3 mb-2">
-                <span className="w-7 h-7 flex items-center justify-center rounded-full bg-ink-faint/30 text-ink-faint text-[14px] font-bold shrink-0">+</span>
-                <h3 className="text-[15px] sm:text-[16px] font-bold text-ink-muted">Like Verification</h3>
+                <span className="w-7 h-7 flex items-center justify-center rounded-full bg-emerald-500 text-white text-[12px] font-bold shrink-0">✓</span>
+                <h3 className="text-[15px] sm:text-[16px] font-bold text-ink-deep">Liked Post Verification</h3>
               </div>
               <p className="text-[13px] sm:text-[14px] text-ink leading-[1.6]">
-                Verify a user&rsquo;s like on a specific post.
+                Verify a screenshot of a liked post from @GenLayer &mdash; heart icon must be filled.
               </p>
-              <span className="inline-block mt-2 text-[11px] font-bold uppercase tracking-wider text-ink-faint bg-canvas-surface px-2 py-0.5 rounded-sm">Upcoming</span>
+              <span className="inline-block mt-2 text-[11px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-sm">Live</span>
             </div>
 
             <div className="p-4 sm:p-5 border border-border rounded-sm bg-canvas opacity-60">
