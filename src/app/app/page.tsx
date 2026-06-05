@@ -328,11 +328,11 @@ export default function Home() {
         account: address as `0x${string}`,
         provider: getProvider(),
       })
-                            const glWriteClient = createClient({ chain: network === 'bradbury' ? testnetBradbury as any : studionet as any, account: address as `0x${string}`, provider: getProvider() })
-                            const result: any = await glWriteClient.writeContract({
-                              address: profileAddr as `0x${string}`,
-                            functionName: 'submit',
-                            args: [profileCompressedBytes, xHandle, verifyCode],
+
+      const hash = await glWriteClient.writeContract({
+        address: activeContract as `0x${string}`,
+        functionName: 'submit',
+        args: [compressedBytes],  // genlayer-js expects Uint8Array for bytes type
         value: 0n,
       })
       setTxHash(hash as string)
@@ -438,8 +438,12 @@ export default function Home() {
 
   const copyText = async (text: string) => { try { await navigator.clipboard.writeText(text) } catch {} }
 
+  const DEPLOYER = '0x823f5d1f084448091800fee6f0bbf5bbe98aa98e'
+  const isDeployer = address?.toLowerCase() === DEPLOYER.toLowerCase()
+
   const allEntries = Object.entries(subs)
     .filter(([, s]) => view !== 'dashboard' || (taskType === 'post_screenshot' ? s._source === 'post' : s._source === 'liked'))
+    .filter(([, s]) => view !== 'dashboard' || isDeployer || s.submitter?.toLowerCase() === address?.toLowerCase())
     .sort(([, a], [, b]) =>
     new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
   )
@@ -523,15 +527,15 @@ export default function Home() {
         {view !== 'task' && (
           <>
             {view === 'submit' && taskType === 'liked_post_screenshot' ? (
-{view === 'profile' && !profileAddr && (
-              <div className="py-20 text-center border border-border rounded-sm bg-canvas">
-                <p className="text-[16px] font-semibold text-ink-muted mb-1.5">Profile Verifier not deployed</p>
-                <p className="text-[14px] text-ink-faint max-w-md mx-auto leading-[1.5]">
-                  Set <code className="text-[13px] bg-canvas-surface px-1.5 py-0.5 rounded-sm font-mono text-ink">NEXT_PUBLIC_PROFILE_VERIFIER_CONTRACT</code>{network === 'studionet' ? ' or NEXT_PUBLIC_PROFILE_VERIFIER_CONTRACT_STUDIO' : ''} in your environment variables.
-                </p>
-              </div>
-            )}
-        {view === 'profile' && profileAddr && (
+              !likedAddr && (
+                <div className="py-20 text-center border border-border rounded-sm bg-canvas">
+                  <p className="text-[16px] font-semibold text-ink-muted mb-1.5">Liked Post Verifier not deployed</p>
+                  <p className="text-[14px] text-ink-faint max-w-md mx-auto leading-[1.5]">
+                    Set <code className="text-[13px] bg-canvas-surface px-1.5 py-0.5 rounded-sm font-mono text-ink">NEXT_PUBLIC_LIKED_VERIFIER_CONTRACT</code> in your environment variables.
+                  </p>
+                </div>
+              )
+            ) : (
               !contractAddr && (
                 <div className="py-20 text-center border border-border rounded-sm bg-canvas">
                   <p className="text-[16px] font-semibold text-ink-muted mb-1.5">No contract configured</p>
@@ -542,6 +546,228 @@ export default function Home() {
                   </p>
                 </div>
               )
+            )}
+          </>
+        )}
+
+        {/* ── PROFILE ── */}
+        {view === 'profile' && !profileAddr && (
+          <div className="py-20 text-center border border-border rounded-sm bg-canvas">
+            <p className="text-[16px] font-semibold text-ink-muted mb-1.5">Profile Verifier not deployed</p>
+            <p className="text-[14px] text-ink-faint max-w-md mx-auto leading-[1.5]">
+              Set <code className="text-[13px] bg-canvas-surface px-1.5 py-0.5 rounded-sm font-mono text-ink">NEXT_PUBLIC_PROFILE_VERIFIER_CONTRACT</code>{network === 'studionet' ? ' or NEXT_PUBLIC_PROFILE_VERIFIER_CONTRACT_STUDIO' : ''} in your environment variables.
+            </p>
+          </div>
+        )}
+        {view === 'profile' && profileAddr && (
+          <>
+            <div className="mb-6 sm:mb-10">
+              <h1 className="text-[24px] sm:text-[30px] font-extrabold text-ink-deep leading-[1.2] tracking-[-0.75px]">Verify Your X Profile</h1>
+              <p className="mt-2 text-[14px] sm:text-[16px] text-ink leading-[1.5] max-w-xl">
+                Prove you own your X/Twitter handle. Tweet a one-time code, upload the screenshot, and AI validators confirm it on-chain.
+              </p>
+            </div>
+
+            {profileError && (
+              <div className="mb-6 p-3 sm:p-4 border border-red-300/70 bg-red-50 rounded-sm flex items-start justify-between gap-2 shadow-sm">
+                <div className="flex items-start gap-2.5">
+                  <svg className="w-4 h-4 text-red-500 mt-0.5 shrink-0" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5"/><path d="M8 5v3.5M8 11v.01" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                  <p className="text-[13px] sm:text-[14px] text-red-800 leading-[1.5]">{profileError}</p>
+                </div>
+                <button onClick={() => setProfileError(null)} className="text-red-400 hover:text-red-600 transition-colors shrink-0 p-0.5">
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 12 12" fill="none"><path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                </button>
+              </div>
+            )}
+
+            {!isConnected ? (
+              <button onClick={() => open()}
+                className="w-full py-12 sm:py-16 text-center border border-border rounded-sm bg-canvas hover:bg-canvas-surface transition-colors cursor-pointer">
+                <p className="text-[15px] sm:text-[16px] font-semibold text-ink-muted mb-1">Connect your wallet</p>
+                <p className="text-[13px] sm:text-[14px] text-ink-faint px-3">Connect to verify your X profile.</p>
+              </button>
+            ) : !verifyCode ? (
+              <>
+                <div className="mb-6">
+                  <label className="block text-[13px] font-bold uppercase tracking-wide text-ink-muted mb-2">X / Twitter Handle</label>
+                  <div className="flex gap-2">
+                    <input type="text" value={xHandle} onChange={(e) => setXHandle(e.target.value.replace('@', '').trim())}
+                      placeholder="@yourhandle"
+                      className="flex-1 px-3 py-2 text-[14px] border border-border rounded-sm bg-canvas-surface focus:outline-none focus:border-brand transition-colors placeholder:text-ink-faint" />
+                    <button onClick={generateCode} disabled={!xHandle || xHandle.length < 2}
+                      className="px-4 py-2 bg-brand-dark text-white text-[13px] font-bold rounded-sm hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed transition-all whitespace-nowrap">
+                      Generate Code
+                    </button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="mb-6 p-4 sm:p-5 border border-brand/30 bg-brand/5 rounded-sm">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-[13px] font-bold uppercase tracking-wide text-ink-muted">Your Verification Code</h3>
+                    <span className="text-[13px] font-bold font-mono" style={{color: countdown <= 60 ? '#dc2626' : undefined}}>
+                      {Math.floor(countdown / 60)}:{String(countdown % 60).padStart(2, '0')}
+                    </span>
+                  </div>
+                  <div className="text-center py-4 sm:py-5 bg-canvas-surface rounded-sm border border-border">
+                    <span className="text-[30px] sm:text-[40px] font-bold tracking-[10px] font-mono text-brand-dark select-all">{verifyCode}</span>
+                  </div>
+                  <div className="mt-3 bg-canvas-surface border border-border rounded-sm p-3 sm:p-4">
+                    <p className="text-[12px] text-ink-faint font-semibold mb-2">Tweet this exact message from <strong>@{xHandle}</strong>:</p>
+                    <div className="flex items-center gap-2">
+                      <code className="flex-1 text-[13px] sm:text-[14px] font-mono bg-canvas px-3 py-2 rounded-sm border border-border break-all">
+                        Verifying @taskverifier: {verifyCode}
+                      </code>
+                      <button onClick={() => navigator.clipboard.writeText('Verifying @taskverifier: ' + verifyCode)}
+                        className="px-3 py-2 text-[12px] font-bold rounded-sm border border-border bg-canvas-surface hover:bg-canvas-raised transition-colors shrink-0 whitespace-nowrap">
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {countdown > 0 && (
+                  <div className="mb-6">
+                    <label className="block text-[13px] font-bold uppercase tracking-wide text-ink-muted mb-3">Upload Screenshot of Your Tweet</label>
+                    <label className="relative flex flex-col items-center justify-center w-full h-40 rounded-sm border border-dashed cursor-pointer transition-colors" style={{borderColor: profileRawPreview ? 'rgba(30,58,95,0.3)' : undefined, backgroundColor: profileRawPreview ? '#eff6ff' : undefined}}>
+                      {profileRawPreview ? (
+                        <img src={profileRawPreview} alt="Preview" className="absolute inset-0 w-full h-full object-contain rounded-sm p-2" />
+                      ) : (
+                        <div className="text-center">
+                          <div className="text-2xl mb-1">📸</div>
+                          <span className="text-[14px] font-semibold text-ink-muted">Drop your tweet screenshot here</span>
+                          <span className="block text-[12px] text-ink-faint mt-0.5">PNG, JPEG, WebP · max 20MB</span>
+                        </div>
+                      )}
+                      <input type="file" accept="image/png,image/jpeg,image/webp" onChange={(e) => {
+                        const f = e.target.files?.[0]
+                        if (!f) return
+                        if (!f.type.startsWith('image/')) { setProfileError('Please select an image file'); return }
+                        if (f.size > 20 * 1024 * 1024) { setProfileError('File too large (max 20MB)'); return }
+                        setProfileError(null); setProfileFile(f); setProfileRawPreview(URL.createObjectURL(f))
+                        const img = new Image()
+                        img.onload = () => {
+                          let w = img.naturalWidth, h = img.naturalHeight, MAX = 640
+                          if (w > MAX || h > MAX) { if (w > h) { h = Math.round(h * MAX / w); w = MAX } else { w = Math.round(w * MAX / h); h = MAX } }
+                          const canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h
+                          const ctx = canvas.getContext('2d'); if (!ctx) return; ctx.drawImage(img, 0, 0, w, h)
+                          let quality = 0.7, attempts = 0
+                          const tryC = () => {
+                            canvas.toBlob((blob) => {
+                              if (!blob) return
+                              setProfileCompressionInfo({ originalSize: f.size, compressedSize: blob.size, ratio: Math.round((1 - blob.size / f.size) * 100), width: w, height: h })
+                              if (blob.size > 50000 && attempts < 10) { quality -= 0.1; attempts++; tryC(); return }
+                              setProfileCompressWarn(blob.size > 50000 ? 'Warning: Image exceeds 50KB limit.' : null)
+                              blob.arrayBuffer().then(buf => { setProfileCompressedBlob(blob); setProfileCompressedBytes(new Uint8Array(buf)); setProfileCompressedPreview(URL.createObjectURL(blob)) })
+                            }, 'image/jpeg', quality)
+                          }; tryC()
+                        }; img.src = URL.createObjectURL(f)
+                      }} className="absolute inset-0 opacity-0 cursor-pointer" />
+                    </label>
+                    {profileRawPreview && (
+                      <button type="button" onClick={() => { setProfileFile(null); setProfileRawPreview(null); setProfileCompressedPreview(null); setProfileCompressedBlob(null); setProfileCompressedBytes(null); setProfileCompressionInfo(null); setProfileCompressWarn(null); setProfileTaskId(null); setProfileTxHash(null); setProfileResult(null) }}
+                        className="mt-1.5 text-[12px] font-semibold text-ink-faint hover:text-brand transition-colors">Remove</button>
+                    )}
+                    {profileCompressionInfo && (
+                      <div className="mt-3 border border-border rounded-sm overflow-hidden">
+                        <div className="px-3 py-2 bg-canvas-surface border-b border-border flex items-center gap-2">
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-ink-muted">Image</span>
+                          <span className="text-[10px] text-ink-faint ml-auto font-mono">w:{profileCompressionInfo.width} x h:{profileCompressionInfo.height}</span>
+                        </div>
+                        <div className="p-3 grid grid-cols-2 gap-2 text-[12px] font-mono">
+                          <div><span className="text-ink-faint">Original:</span> <span className="font-bold text-ink">{(profileCompressionInfo.originalSize / 1024).toFixed(1)}KB</span></div>
+                          <div><span className="text-ink-faint">Compressed:</span> <span className="font-bold" style={{color: profileCompressedBytes && profileCompressedBytes.length > 50000 ? '#dc2626' : '#059669'}}>{(profileCompressionInfo.compressedSize / 1024).toFixed(1)}KB</span></div>
+                          <div><span className="text-ink-faint">Ratio:</span> <span className="font-bold" style={{color: '#1e3a5f'}}>-{profileCompressionInfo.ratio}%</span></div>
+                          <div><span className="text-ink-faint">Limit:</span> <span style={{color: profileCompressedBytes && profileCompressedBytes.length > 50000 ? '#dc2626' : undefined}}>50KB (Bradbury)</span></div>
+                        </div>
+                        {profileCompressWarn && <div className="px-3 py-2 bg-red-50 border-t border-red-200 text-[12px] text-red-700 font-medium">{profileCompressWarn}</div>}
+                      </div>
+                    )}
+                    {profileSubmitted && (
+                      <div className="mt-3 p-4 border border-emerald-300/60 bg-emerald-50 rounded-sm shadow-sm">
+                        <div className="flex items-center gap-2.5">
+                          <svg className="w-5 h-5 text-emerald-600 shrink-0" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5"/><path d="M5 8l2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                          <p className="text-[14px] font-semibold text-emerald-800">Submitted! Your proof is pending AI verification.</p>
+                        </div>
+                      </div>
+                    )}
+                    {(profileTaskId || profileTxHash || profileResult) && (
+                      <div className="mt-3 border border-indigo-200 bg-indigo-50/30 rounded-sm overflow-hidden">
+                        <div className="px-3 py-2 bg-indigo-100/50 border-b border-indigo-200"><span className="text-[11px] font-bold uppercase tracking-wider text-indigo-700">Transaction</span></div>
+                        <div className="p-3 space-y-1.5 text-[12px] font-mono">
+                          {profileTxHash && <div><span className="text-ink-faint">TX:</span> <span className="text-ink break-all">{profileTxHash}</span></div>}
+                          {profileTaskId && <div><span className="text-ink-faint">ID:</span> <span className="font-bold text-ink-deep">{profileTaskId}</span></div>}
+                          {profileResult && <div><span className="text-ink-faint">Result:</span> <span className="font-bold" style={{color: profileResult.status === 'verified' ? '#059669' : profileResult.status === 'rejected' ? '#dc2626' : undefined}}>{profileResult.status} &mdash; {profileResult.reason}</span></div>}
+                        </div>
+                      </div>
+                    )}
+                    <div className="flex gap-3 mt-4">
+                      <button onClick={async () => {
+                        if (!address || !walletClient || !profileCompressedBytes || !profileAddr) return
+                        setProfileSubmitting(true); setProfileTxHash(null); setProfileTaskId(null); setProfileResult(null)
+                        try {
+                          const activeChain = network === 'bradbury' ? testnetBradbury : studionet as any
+                          const glWrite = createClient({ chain: activeChain, account: address as `0x${string}`, provider: getProvider() })
+                          const hash = await glWrite.writeContract({
+                            address: profileAddr as `0x${string}`,
+                            functionName: 'submit',
+                            args: [profileCompressedBytes, xHandle, verifyCode],
+                            value: 0n,
+                          })
+                          setProfileTxHash(hash as string); setProfileSubmitted(true)
+                          setTimeout(() => setProfileSubmitted(false), 6000)
+                          for (let i = 0; i < 15; i++) {
+                            await new Promise(r => setTimeout(r, 2000))
+                            try {
+                              const glRead = createClient({ chain: activeChain })
+                              const raw: any = await glRead.readContract({ address: profileAddr as `0x${string}`, functionName: 'get_all', args: [] })
+                              if (raw && typeof raw === 'object') {
+                                const entries = Object.entries(raw as Record<string, any>).filter(([, s]: any) => String(s.submitter).toLowerCase() === address.toLowerCase())
+                                if (entries.length > 0) { setProfileTaskId(entries[entries.length - 1][0]); break }
+                              }
+                            } catch {}
+                          }
+                          setProfileFile(null); setProfileRawPreview(null); setProfileCompressedPreview(null); setProfileCompressedBlob(null); setProfileCompressedBytes(null); setProfileCompressionInfo(null); setProfileCompressWarn(null)
+                        } catch (e: any) { setProfileError(e?.cause?.message || e?.shortMessage || e?.message || 'Submission failed') }
+                        finally { setProfileSubmitting(false) }
+                      }}
+                        disabled={profileSubmitting || !profileCompressedBytes}
+                        className="flex-1 py-2.5 text-white text-[15px] font-bold rounded-sm transition-all" style={{
+                          backgroundColor: !profileCompressedBytes ? 'rgba(0,0,0,0.25)' : profileSubmitting ? 'rgba(30,58,95,0.7)' : '#1e3a5f',
+                          cursor: !profileCompressedBytes ? 'not-allowed' : profileSubmitting ? 'wait' : undefined
+                        }}>
+                        {!profileCompressedBytes ? 'Select an image first' : profileSubmitting ? 'Submitting to GenLayer…' : 'Submit Proof →'}
+                      </button>
+                      {profileTaskId && !profileResult && (
+                        <button onClick={async () => {
+                          if (!address || !walletClient || !profileTaskId || !profileAddr) return
+                          setProfileVerifying(true)
+                          try {
+                            const activeChain = network === 'bradbury' ? testnetBradbury : studionet as any
+                            const glWrite = createClient({ chain: activeChain, account: address as `0x${string}`, provider: getProvider() })
+                            const r: any = await glWrite.writeContract({ address: profileAddr as `0x${string}`, functionName: 'verify', args: [profileTaskId], value: 0n })
+                            setProfileResult(r || { status: 'verified', reason: 'X profile verified on-chain' })
+                          } catch (e: any) { setProfileError(e?.message || 'Verification failed') }
+                          finally { setProfileVerifying(false) }
+                        }}
+                          className="px-5 py-2.5 text-white text-[15px] font-bold rounded-sm transition-all" style={{backgroundColor: '#059669'}}>
+                          {profileVerifying ? 'Verifying…' : 'Verify Proof'}
+                        </button>
+                      )}
+                    </div>
+                    {profileSubmitting && (
+                      <div className="mt-3 text-center text-[12px] text-ink-muted font-mono animate-pulse">Waiting for transaction confirmation… this may take 1-2 minutes</div>
+                    )}
+                  </div>
+                )}
+                {countdown <= 0 && verifyCode && (
+                  <div className="mt-4 text-center">
+                    <p className="text-[13px] text-red-600 font-semibold mb-2">Code expired. Generate a new one.</p>
+                    <button onClick={generateCode} className="px-4 py-2 bg-brand-dark text-white text-[13px] font-bold rounded-sm hover:opacity-80 transition-all">Generate New Code</button>
+                  </div>
+                )}
+              </>
             )}
           </>
         )}
