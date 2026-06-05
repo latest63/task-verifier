@@ -87,7 +87,11 @@ class ProfileVerifier(gl.Contract):
 
         def nd() -> str:
             # Fetch the tweet page to verify the code and handle are present
-            page_content = gl.nondet.web.render(sub.tweet_url)
+            page_content = gl.nondet.web.render(
+                sub.tweet_url,
+                mode="text",
+                wait_after_loaded="5s",
+            )
 
             prompt = f"""You are a GenLayer X/Twitter profile verifier. Determine if the X/Twitter post at the URL below is from @{sub.x_handle} and contains the verification code "{sub.code}".
 
