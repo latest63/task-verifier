@@ -815,7 +815,10 @@ export default function Home() {
                     1
                   </div>
                   <div>
-                    <h3 className="text-[16px] sm:text-[18px] font-bold text-ink-deep">Post Screenshot</h3>
+                    <h3 className="text-[16px] sm:text-[18px] font-bold text-ink-deep flex items-center gap-2">
+                      Post Screenshot
+                      <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-sm bg-amber-100 text-amber-700 border border-amber-300">Test</span>
+                    </h3>
                     <p className="text-[12px] text-ink-faint mt-0.5">GenLayer post verification</p>
                   </div>
                 </div>
