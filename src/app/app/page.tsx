@@ -135,6 +135,9 @@ export default function Home() {
   const dropRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Profile verification state
+  const CODE_STORAGE_KEY = 'profile_verify_code'
+  const CODE_EXPIRY_KEY = 'profile_verify_expires'
+
   const [xHandle, setXHandle] = useState('')
   const [verifyCode, setVerifyCode] = useState('')
   const [codeExpiresAt, setCodeExpiresAt] = useState<number | null>(null)
@@ -158,15 +161,39 @@ export default function Home() {
   const [checkingHandle, setCheckingHandle] = useState(false)
   const profileCanvasRef = useRef<HTMLCanvasElement>(null)
 
+  // Restore code from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(CODE_STORAGE_KEY)
+      const expiry = localStorage.getItem(CODE_EXPIRY_KEY)
+      if (saved && expiry) {
+        const exp = parseInt(expiry, 10)
+        if (Date.now() < exp) {
+          setVerifyCode(saved)
+          setCodeExpiresAt(exp)
+        } else {
+          localStorage.removeItem(CODE_STORAGE_KEY)
+          localStorage.removeItem(CODE_EXPIRY_KEY)
+        }
+      }
+    } catch {}
+  }, [])
+
   const generateCode = () => {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
     let code = ''
     const array = new Uint8Array(6)
     crypto.getRandomValues(array)
     for (let i = 0; i < 6; i++) code += chars[array[i] % chars.length]
+    const expires = Date.now() + 5 * 60 * 1000
     setVerifyCode(code)
-    setCodeExpiresAt(Date.now() + 5 * 60 * 1000)
+    setCodeExpiresAt(expires)
     setCountdown(300)
+    // Persist to localStorage
+    try {
+      localStorage.setItem(CODE_STORAGE_KEY, code)
+      localStorage.setItem(CODE_EXPIRY_KEY, String(expires))
+    } catch {}
   }
 
   // 5-min countdown
@@ -179,6 +206,10 @@ export default function Home() {
         clearInterval(interval)
         setVerifyCode('')
         setCodeExpiresAt(null)
+        try {
+          localStorage.removeItem(CODE_STORAGE_KEY)
+          localStorage.removeItem(CODE_EXPIRY_KEY)
+        } catch {}
       }
     }, 1000)
     return () => clearInterval(interval)
@@ -1006,9 +1037,21 @@ export default function Home() {
                   <div className="p-4 sm:p-5 border border-brand/30 bg-brand/5 rounded-sm mb-6">
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="text-[13px] font-bold uppercase tracking-wide text-ink-muted">Your Verification Code</h3>
-                      <span className="text-[13px] font-bold font-mono" style={{color: countdown <= 60 ? '#dc2626' : undefined}}>
-                        {Math.floor(countdown / 60)}:{String(countdown % 60).padStart(2, '0')}
-                      </span>
+                      <div className="relative w-11 h-11 shrink-0">
+                        <svg className="w-11 h-11 -rotate-90" viewBox="0 0 44 44">
+                          <circle cx="22" cy="22" r="19" fill="none" stroke="#e5e7eb" strokeWidth="3.5" />
+                          <circle cx="22" cy="22" r="19" fill="none"
+                            stroke={countdown <= 60 ? '#dc2626' : '#1e3a5f'}
+                            strokeWidth="3.5" strokeLinecap="round"
+                            strokeDasharray={`${2 * Math.PI * 19}`}
+                            strokeDashoffset={`${2 * Math.PI * 19 * (1 - countdown / 300)}`}
+                            className="transition-all duration-1000 ease-linear" />
+                        </svg>
+                        <span className="absolute inset-0 flex items-center justify-center text-[12px] font-bold font-mono"
+                          style={{color: countdown <= 60 ? '#dc2626' : undefined}}>
+                          {Math.floor(countdown / 60)}:{String(countdown % 60).padStart(2, '0')}
+                        </span>
+                      </div>
                     </div>
                     <div className="text-center py-4 sm:py-5 bg-canvas-surface rounded-sm border border-border">
                       <span className="text-[30px] sm:text-[40px] font-bold tracking-[10px] font-mono text-brand-dark select-all">{verifyCode}</span>
