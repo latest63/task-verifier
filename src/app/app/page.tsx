@@ -763,7 +763,7 @@ export default function Home() {
                       <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-sm bg-amber-100 text-amber-700 border border-amber-300">Test</span>
                     </div>
                     <p className="text-[13px] sm:text-[14px] text-ink leading-[1.6]">
-                      Take a screenshot of any post from @GenLayer on X and verify it&rsquo;s the real deal.
+                      Take a screenshot of any post from @GenLayer on X and verify its realness.
                     </p>
                     <div className="mt-3 flex items-center gap-1.5 text-[12px] font-semibold text-brand group-hover:gap-2 transition-all">
                       Join Campaign →
@@ -813,7 +813,7 @@ export default function Home() {
                         <h3 className="text-[16px] sm:text-[18px] font-bold text-ink-deep">Liked Post Screenshot</h3>
                       </div>
                       <p className="text-[13px] sm:text-[14px] text-ink leading-[1.6]">
-                        Take a screenshot of a liked post from @GenLayer on X — the heart icon should be filled.
+                        Take a screenshot of a liked post from @GenLayer on X.
                       </p>
                       <div className="mt-3 flex items-center gap-1.5 text-[12px] font-semibold text-brand group-hover:gap-2 transition-all">
                         Join Campaign →
@@ -992,7 +992,7 @@ export default function Home() {
                 {taskType === 'profile_verification'
                   ? 'Prove you own your X/Twitter handle. Tweet a one-time code, upload the screenshot of the tweet, and AI validators confirm it on-chain.'
                   : taskType === 'liked_post_screenshot'
-                  ? 'Upload a screenshot of a liked post from @GenLayer on X. The AI checks if the post is real and the heart icon is filled.'
+                  ? 'Upload a screenshot of a liked post from @GenLayer on X. The AI checks if the post is real.'
                   : 'Upload a screenshot of a post from @GenLayer on X. The AI verifies it\'s a real GenLayer post.'}
               </p>
               <div className="mt-2 flex items-center gap-2 text-[11px] text-ink-faint font-mono">
@@ -1449,12 +1449,12 @@ export default function Home() {
               ) : (
                 <div className="space-y-4">
                   {[
-                    { num: '1', icon: '❤️', title: 'Find the pinned GenLayer post', desc: 'Go to <a href="https://x.com/genlayer/status/2060049252319961451" target="_blank" rel="noopener" class="font-bold text-brand hover:underline">this pinned post</a> on X and like it' },
-                    { num: '2', icon: '👍', title: 'Like the post', desc: 'Click the heart icon to like it. The heart should turn filled/pink/red.' },
-                    { num: '3', icon: '📱', title: 'Take a screenshot', desc: 'Capture the post with the filled heart icon clearly visible. Make sure "GenLayer" and the heart are both in frame.' },
+                    { num: '1', icon: '❤️', title: 'Find a GenLayer post', desc: 'Go to <a href="https://x.com/genlayer" target="_blank" rel="noopener" class="font-bold text-brand hover:underline">@GenLayer</a> profile on X and find a post you want to verify.' },
+                    { num: '2', icon: '👍', title: 'Like the post', desc: 'Click the heart icon to like it.' },
+                    { num: '3', icon: '📱', title: 'Take a screenshot', desc: 'Capture the post clearly. Make sure "GenLayer" is visible in frame.' },
                     { num: '4', icon: '📤', title: 'Upload the image', desc: 'Drop the screenshot above. The app auto-compresses it.' },
                     { num: '5', icon: '🔗', title: 'Submit to the blockchain', desc: 'Connect your wallet and submit. Your screenshot goes to the Liked Post Verifier contract.' },
-                    { num: '6', icon: '🤖', title: 'AI checks it', desc: 'GenLayer validators check if the screenshot shows THIS specific post with a filled heart. Results are on-chain.' },
+                    { num: '6', icon: '🤖', title: 'AI checks it', desc: 'GenLayer validators check if the screenshot shows the liked post. Results are on-chain.' },
                   ].map(step => (
                     <div key={step.num} className="flex gap-3 sm:gap-4 p-3 sm:p-4 border border-border rounded-sm bg-canvas">
                       <div className="shrink-0 w-8 h-8 flex items-center justify-center rounded-sm font-bold text-[14px] text-white"
