@@ -534,7 +534,7 @@ export default function Home() {
   const pendingN = allEntries.filter(([, s]) => s.status === 'pending').length
   const rejectedN = allEntries.filter(([, s]) => s.status === 'rejected').length
 
-  const viewAbbr: Record<View, string> = { task: 'Task', dashboard: 'Activity', submit: 'Submit', profile: 'Profile' }
+  const viewAbbr: Record<View, string> = { task: 'Task', dashboard: 'Campaign', submit: 'Submit', profile: 'Profile' }
 
   return (
     <main className="min-h-screen font-sans bg-canvas">
@@ -725,113 +725,123 @@ export default function Home() {
           </div>
         )}
 
-        {/* ════════ TASK INFO ════════ */}
+        {/* ════════ CAMPAIGN LANDING ════════ */}
         {view === 'task' && (
           <>
-            <div className="mb-6 sm:mb-8">
-              <h1 className="text-[24px] sm:text-[30px] font-extrabold text-ink-deep leading-[1.2] tracking-[-0.75px]">GenLayer Post Verifier</h1>
-              <p className="mt-2 text-[14px] sm:text-[16px] text-ink leading-[1.5] max-w-xl">
-                Verify screenshots of <a href="https://x.com/GenLayer" target="_blank" rel="noopener" className="font-bold text-brand hover:underline">@GenLayer</a> posts on X. Results stored on-chain via GenLayer AI consensus.
+            {/* Campaign Hero */}
+            <div className="mb-10 sm:mb-14">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-brand bg-brand/5 px-3 py-1 rounded-sm border border-brand/20">Sponsored Campaign</span>
+              </div>
+              <h1 className="text-[28px] sm:text-[38px] font-extrabold text-ink-deep leading-[1.1] tracking-[-0.02em] max-w-2xl">
+                Verify. Earn. Prove.<br />
+                <span className="text-brand">GenLayer x Task Verifier</span>
+              </h1>
+              <p className="mt-3 text-[15px] sm:text-[17px] text-ink leading-[1.6] max-w-xl">
+                Task Verifier is running a verification campaign powered by GenLayer AI consensus. Complete tasks, prove your X profile, and help test the future of on-chain verification.
               </p>
+              <div className="flex items-center gap-3 mt-5 pb-6 border-b border-border">
+                <img src="/genlayer-logo.jpeg" alt="GenLayer" className="h-7 w-auto object-contain" />
+                <span className="text-[13px] text-ink-faint font-medium">Powered by GenLayer AI consensus</span>
+              </div>
             </div>
 
-            <div className="flex items-center gap-3 mb-8 pb-6 border-b border-border">
-              <img src="/genlayer-logo.jpeg" alt="GenLayer" className="h-8 w-auto object-contain" />
-              <span className="text-[13px] text-ink-faint font-medium">Powered by GenLayer AI consensus</span>
-            </div>
-
-            <div className="grid sm:grid-cols-2 gap-4 sm:gap-6">
-              {/* Task 1 — always accessible (test task) */}
-              <button onClick={() => { setView('submit'); setTaskType('post_screenshot') }}
-                className="group text-left p-5 sm:p-6 border border-border rounded-sm bg-canvas hover:bg-canvas-surface hover:border-brand/40 transition-all text-start">
-                <div className="flex items-center gap-3 mb-3">
+            {/* Campaign Steps */}
+            <div className="space-y-4">
+              {/* Step 1 — always accessible */}
+              <div
+                className="group p-5 sm:p-6 border border-border rounded-sm bg-canvas hover:bg-canvas-surface hover:border-brand/40 transition-all cursor-pointer"
+                onClick={() => { setView('submit'); setTaskType('post_screenshot') }}>
+                <div className="flex items-start gap-4">
                   <div className="shrink-0 w-10 h-10 flex items-center justify-center rounded-sm font-bold text-lg text-white"
                     style={{ backgroundColor: '#1e3a5f' }}>
                     1
                   </div>
-                  <div>
-                    <h3 className="text-[16px] sm:text-[18px] font-bold text-ink-deep flex items-center gap-2">
-                      Post Screenshot
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="text-[16px] sm:text-[18px] font-bold text-ink-deep">Post Screenshot</h3>
                       <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-sm bg-amber-100 text-amber-700 border border-amber-300">Test</span>
-                    </h3>
-                    <p className="text-[12px] text-ink-faint mt-0.5">GenLayer post verification</p>
+                    </div>
+                    <p className="text-[13px] sm:text-[14px] text-ink leading-[1.6]">
+                      Take a screenshot of any post from @GenLayer on X and verify it&rsquo;s the real deal.
+                    </p>
+                    <div className="mt-3 flex items-center gap-1.5 text-[12px] font-semibold text-brand group-hover:gap-2 transition-all">
+                      Join Campaign →
+                    </div>
                   </div>
                 </div>
-                <p className="text-[13px] sm:text-[14px] text-ink leading-[1.6]">
-                  Take a screenshot of any post from @GenLayer on X and verify it&rsquo;s the real deal.
-                </p>
-                <div className="mt-3 flex items-center gap-1.5 text-[12px] font-semibold text-brand group-hover:gap-2 transition-all">
-                  Start task →
-                </div>
-              </button>
+              </div>
 
-              {/* Task 2 */}
-              <button onClick={() => { setView('submit'); setTaskType('profile_verification') }}
-                className="group text-left p-5 sm:p-6 border border-border rounded-sm bg-canvas hover:bg-canvas-surface hover:border-brand/40 transition-all text-start">
-                <div className="flex items-center gap-3 mb-3">
+              {/* Step 2 */}
+              <div
+                className="group p-5 sm:p-6 border border-border rounded-sm bg-canvas hover:bg-canvas-surface hover:border-brand/40 transition-all cursor-pointer"
+                onClick={() => { setView('submit'); setTaskType('profile_verification') }}>
+                <div className="flex items-start gap-4">
                   <div className="shrink-0 w-10 h-10 flex items-center justify-center rounded-sm font-bold text-lg text-white"
                     style={{ backgroundColor: '#1e3a5f' }}>
                     2
                   </div>
-                  <div>
-                    <h3 className="text-[16px] sm:text-[18px] font-bold text-ink-deep flex items-center gap-2">
-                      Verify X Profile
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="text-[16px] sm:text-[18px] font-bold text-ink-deep">Verify X Profile</h3>
                       {verifiedHandle && (
                         <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-300">Done ✓</span>
                       )}
-                    </h3>
-                    <p className="text-[12px] text-ink-faint mt-0.5">On-chain X handle verification</p>
+                    </div>
+                    <p className="text-[13px] sm:text-[14px] text-ink leading-[1.6]">
+                      Prove you own your X/Twitter handle on-chain. Tweet a code, submit the tweet URL, and AI validators confirm it.
+                    </p>
+                    <div className="mt-3 flex items-center gap-1.5 text-[12px] font-semibold text-brand group-hover:gap-2 transition-all">
+                      Join Campaign →
+                    </div>
                   </div>
                 </div>
-                <p className="text-[13px] sm:text-[14px] text-ink leading-[1.6]">
-                  Prove you own your X/Twitter handle. Tweet a code, upload a screenshot of the tweet, and AI validators confirm it on-chain.
-                </p>
-                <div className="mt-3 flex items-center gap-1.5 text-[12px] font-semibold text-brand group-hover:gap-2 transition-all">
-                  Start task →
-                </div>
-              </button>
-            </div>
-            {/* Task 3 — requires profile verification */}
-            <div className="mt-4 sm:mt-0">
+              </div>
+
+              {/* Step 3 — requires profile verification */}
               {(!isConnected || verifiedHandle) ? (
-                <button onClick={() => { setView('submit'); setTaskType('liked_post_screenshot') }}
-                  className="group text-left p-5 sm:p-6 border border-border rounded-sm bg-canvas hover:bg-canvas-surface hover:border-brand/40 transition-all text-start w-full">
-                  <div className="flex items-center gap-3 mb-3">
+                <div
+                  className="group p-5 sm:p-6 border border-border rounded-sm bg-canvas hover:bg-canvas-surface hover:border-brand/40 transition-all cursor-pointer"
+                  onClick={() => { setView('submit'); setTaskType('liked_post_screenshot') }}>
+                  <div className="flex items-start gap-4">
                     <div className="shrink-0 w-10 h-10 flex items-center justify-center rounded-sm font-bold text-lg text-white"
                       style={{ backgroundColor: '#1e3a5f' }}>
                       3
                     </div>
-                    <div>
-                      <h3 className="text-[16px] sm:text-[18px] font-bold text-ink-deep">Liked Post Screenshot</h3>
-                      <p className="text-[12px] text-ink-faint mt-0.5">GenLayer liked-post verification</p>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="text-[16px] sm:text-[18px] font-bold text-ink-deep">Liked Post Screenshot</h3>
+                      </div>
+                      <p className="text-[13px] sm:text-[14px] text-ink leading-[1.6]">
+                        Take a screenshot of a liked post from @GenLayer on X — the heart icon should be filled.
+                      </p>
+                      <div className="mt-3 flex items-center gap-1.5 text-[12px] font-semibold text-brand group-hover:gap-2 transition-all">
+                        Join Campaign →
+                      </div>
                     </div>
                   </div>
-                  <p className="text-[13px] sm:text-[14px] text-ink leading-[1.6]">
-                    Take a screenshot of a liked post from @GenLayer on X — the heart icon should be filled.
-                  </p>
-                  <div className="mt-3 flex items-center gap-1.5 text-[12px] font-semibold text-brand group-hover:gap-2 transition-all">
-                    Start task →
-                  </div>
-                </button>
+                </div>
               ) : (
-                <button onClick={() => { setView('submit'); setTaskType('profile_verification') }}
-                  className="group text-left p-5 sm:p-6 border border-dashed border-ink-faint/30 rounded-sm bg-canvas-surface/50 cursor-pointer text-start w-full">
-                  <div className="flex items-center gap-3 mb-3">
+                <div
+                  className="group p-5 sm:p-6 border border-dashed border-ink-faint/30 rounded-sm bg-canvas-surface/50 cursor-pointer"
+                  onClick={() => { setView('submit'); setTaskType('profile_verification') }}>
+                  <div className="flex items-start gap-4">
                     <div className="shrink-0 w-10 h-10 flex items-center justify-center rounded-sm font-bold text-lg text-ink-faint/40 border-2 border-dashed border-ink-faint/20">
                       <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none"><rect x="3.5" y="6.5" width="9" height="7" rx="1" stroke="currentColor" strokeWidth="1.3"/><path d="M5.5 6.5V4.5a2.5 2.5 0 015 0v2" stroke="currentColor" strokeWidth="1.3"/></svg>
                     </div>
-                    <div>
-                      <h3 className="text-[16px] sm:text-[18px] font-bold text-ink-faint/40">Liked Post Screenshot</h3>
-                      <p className="text-[12px] text-ink-faint/40 mt-0.5">Verify X Profile first</p>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="text-[16px] sm:text-[18px] font-bold text-ink-faint/40">Liked Post Screenshot</h3>
+                      </div>
+                      <p className="text-[13px] sm:text-[14px] text-ink-faint/50 leading-[1.6]">
+                        Verify your X/Twitter handle first — then you can submit liked post screenshots.
+                      </p>
+                      <div className="mt-3 flex items-center gap-1.5 text-[12px] font-semibold text-ink-faint/50">
+                        Verify X Profile first →
+                      </div>
                     </div>
                   </div>
-                  <p className="text-[13px] sm:text-[14px] text-ink-faint/50 leading-[1.6]">
-                    Verify your X/Twitter handle first — then you can submit liked post screenshots for verification.
-                  </p>
-                  <div className="mt-3 flex items-center gap-1.5 text-[12px] font-semibold text-ink-faint/50">
-                    Verify X Profile first →
-                  </div>
-                </button>
+                </div>
               )}
             </div>
           </>
@@ -841,9 +851,9 @@ export default function Home() {
         {(contractAddr || likedAddr || profileAddr) && view === 'dashboard' && (
           <>
             <div className="mb-6 sm:mb-8">
-              <h1 className="text-[24px] sm:text-[30px] font-extrabold text-ink-deep leading-[1.2] tracking-[-0.75px]">Activity</h1>
+              <h1 className="text-[24px] sm:text-[30px] font-extrabold text-ink-deep leading-[1.2] tracking-[-0.75px]">Campaign Dashboard</h1>
               <p className="mt-2 text-[14px] sm:text-[16px] text-ink leading-[1.5] max-w-xl">
-                All submissions verified by GenLayer AI consensus.
+                All submissions verified by GenLayer AI consensus for the Task Verifier campaign.
               </p>
             </div>
 
