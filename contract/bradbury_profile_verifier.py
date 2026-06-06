@@ -124,7 +124,7 @@ class BradburyProfileVerifier(gl.Contract):
 
         verdict = "verified" if raw.get("verified", False) else "rejected"
         reason = (
-            f"X handle @{sub.x_handle} verified — oEmbed confirms matching handle and code"
+            f"GenLayer — @{sub.x_handle} verified"
             if verdict == "verified"
             else f"could not confirm @{sub.x_handle} — handle or code mismatch"
         )
