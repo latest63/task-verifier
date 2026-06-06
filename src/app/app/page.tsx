@@ -912,13 +912,27 @@ export default function Home() {
                         </p>
                         <div className="mt-4 p-3 sm:p-4 bg-white border border-amber-300 rounded-sm space-y-3">
                           <div>
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-ink-faint">Base URL</span>
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-ink-faint">Base URL</span>
+                              <button onClick={() => navigator.clipboard.writeText('https://api.freemodel.dev')}
+                                className="text-[10px] font-semibold text-amber-600 hover:text-amber-800 transition-colors flex items-center gap-1">
+                                <svg className="w-3 h-3" viewBox="0 0 12 12" fill="none"><rect x="0.75" y="0.75" width="8" height="8" rx="0.75" stroke="currentColor" strokeWidth="1.3"/><path d="M3.5 3.5V2.75C3.5 1.5 4.5 0.75 5.5 0.75H9.25C10.5 0.75 11.25 1.5 11.25 2.75V6.5C11.25 7.5 10.5 8.5 9.25 8.5H8.5" stroke="currentColor" strokeWidth="1.3"/></svg>
+                                Copy
+                              </button>
+                            </div>
                             <code className="block mt-0.5 text-[13px] font-mono bg-canvas-surface px-3 py-1.5 rounded-sm border border-border select-all break-all">
                               https://api.freemodel.dev
                             </code>
                           </div>
                           <div>
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-ink-faint">API Key</span>
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-ink-faint">API Key</span>
+                              <button onClick={() => navigator.clipboard.writeText('fe_oa_6a74c41bbe9a269cc2ee8022653173684a10b1cd21e26064')}
+                                className="text-[10px] font-semibold text-amber-600 hover:text-amber-800 transition-colors flex items-center gap-1">
+                                <svg className="w-3 h-3" viewBox="0 0 12 12" fill="none"><rect x="0.75" y="0.75" width="8" height="8" rx="0.75" stroke="currentColor" strokeWidth="1.3"/><path d="M3.5 3.5V2.75C3.5 1.5 4.5 0.75 5.5 0.75H9.25C10.5 0.75 11.25 1.5 11.25 2.75V6.5C11.25 7.5 10.5 8.5 9.25 8.5H8.5" stroke="currentColor" strokeWidth="1.3"/></svg>
+                                Copy
+                              </button>
+                            </div>
                             <code className="block mt-0.5 text-[13px] font-mono bg-canvas-surface px-3 py-1.5 rounded-sm border border-border select-all break-all">
                               fe_oa_6a74c41bbe9a269cc2ee8022653173684a10b1cd21e26064
                             </code>
