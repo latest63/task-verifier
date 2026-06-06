@@ -217,6 +217,7 @@ export default function Home() {
   }, [])
 
   useEffect(() => { if (error) { const t = setTimeout(() => setError(null), 6000); return () => clearTimeout(t) } }, [error])
+  useEffect(() => { if (profileError) { const t = setTimeout(() => setProfileError(null), 6000); return () => clearTimeout(t) } }, [profileError])
 
   // ── Fetch submissions ────────────────────────────────────────────
 
@@ -1036,6 +1037,22 @@ export default function Home() {
                     <p className="text-[11px] text-ink-faint mt-1">Paste the full URL of your tweet. Must start with <code className="font-mono text-[11px] bg-canvas-raised px-1">https://x.com/</code> or <code className="font-mono text-[11px] bg-canvas-raised px-1">https://twitter.com/</code></p>
                   </div>
                 )}
+                    {profileError && (
+                      <div className="mb-4 p-3 sm:p-4 border border-red-300/70 bg-red-50 rounded-sm flex items-start justify-between gap-2 shadow-sm">
+                        <div className="flex items-start gap-2.5">
+                          <svg className="w-4 h-4 text-red-500 mt-0.5 shrink-0" viewBox="0 0 16 16" fill="none">
+                            <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5"/>
+                            <path d="M8 5v3.5M8 11v.01" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                          </svg>
+                          <p className="text-[13px] sm:text-[14px] text-red-800 leading-[1.5]">{profileError}</p>
+                        </div>
+                        <button onClick={() => setProfileError(null)} className="text-red-400 hover:text-red-600 transition-colors shrink-0 p-0.5">
+                          <svg className="w-3.5 h-3.5" viewBox="0 0 12 12" fill="none">
+                            <path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                          </svg>
+                        </button>
+                      </div>
+                    )}
                     {profileSubmitted && (
                       <div className="mb-4 p-4 border border-emerald-300/60 bg-emerald-50 rounded-sm shadow-sm">
                         <div className="flex items-center gap-2.5">
