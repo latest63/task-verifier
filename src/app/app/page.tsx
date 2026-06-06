@@ -534,6 +534,20 @@ export default function Home() {
   const pendingN = allEntries.filter(([, s]) => s.status === 'pending').length
   const rejectedN = allEntries.filter(([, s]) => s.status === 'rejected').length
 
+  // ── Track which campaign tasks are completed ──
+  const taskCompletion = useMemo(() => {
+    if (!isConnected || !address) return { task1: false, task2: false, task3: false }
+    const addr = address.toLowerCase()
+    const mySubs = Object.entries(subs).filter(([, s]) => s.submitter?.toLowerCase() === addr)
+    const hasVerifiedPost = mySubs.some(([, s]) => s._source === 'post' && s.status === 'verified')
+    const hasVerifiedLiked = mySubs.some(([, s]) => s._source === 'liked' && s.status === 'verified')
+    return {
+      task1: hasVerifiedPost,
+      task2: !!verifiedHandle,
+      task3: hasVerifiedLiked,
+    }
+  }, [subs, verifiedHandle, address, isConnected])
+
   const viewAbbr: Record<View, string> = { task: 'Task', dashboard: 'Campaign', submit: 'Submit', profile: 'Profile' }
 
   return (
@@ -821,7 +835,7 @@ export default function Home() {
                     </div>
                   </div>
                 </div>
-              ) : (
+                  ) : (
                 <div
                   className="group p-5 sm:p-6 border border-dashed border-ink-faint/30 rounded-sm bg-canvas-surface/50 cursor-pointer"
                   onClick={() => { setView('submit'); setTaskType('profile_verification') }}>
@@ -844,6 +858,81 @@ export default function Home() {
                 </div>
               )}
             </div>
+
+            {/* ── Encouragement & Rewards ── */}
+            {isConnected && (
+              <>
+                {/* After Task 1 → encourage Task 2 */}
+                {taskCompletion.task1 && !taskCompletion.task2 && (
+                  <div className="mt-6 p-4 sm:p-5 border border-emerald-200 bg-emerald-50/70 rounded-sm">
+                    <div className="flex items-start gap-3">
+                      <span className="text-xl shrink-0">🎯</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[14px] sm:text-[15px] font-bold text-emerald-800">Task 1 Complete!</p>
+                        <p className="text-[13px] text-emerald-700 mt-0.5 leading-[1.5]">
+                          Nice work verifying a GenLayer post! Ready for <strong>Task 2</strong>? Verify your X/Twitter profile on-chain to unlock the next challenge.
+                        </p>
+                        <button onClick={() => { setView('submit'); setTaskType('profile_verification') }}
+                          className="mt-3 px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[12px] font-bold rounded-sm transition-all">
+                          Start Task 2 →
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* After Task 2 → encourage Task 3 */}
+                {taskCompletion.task2 && !taskCompletion.task3 && (
+                  <div className="mt-6 p-4 sm:p-5 border border-blue-200 bg-blue-50/70 rounded-sm">
+                    <div className="flex items-start gap-3">
+                      <span className="text-xl shrink-0">🚀</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[14px] sm:text-[15px] font-bold text-blue-800">Profile Verified!</p>
+                        <p className="text-[13px] text-blue-700 mt-0.5 leading-[1.5]">
+                          Your X handle is verified on-chain! Now take on <strong>Task 3</strong> — upload a screenshot of a liked post from @GenLayer and claim your reward.
+                        </p>
+                        <button onClick={() => { setView('submit'); setTaskType('liked_post_screenshot') }}
+                          className="mt-3 px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-bold rounded-sm transition-all">
+                          Start Task 3 →
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* After Task 2 AND Task 3 → Reward */}
+                {taskCompletion.task2 && taskCompletion.task3 && (
+                  <div className="mt-6 p-5 sm:p-6 border border-amber-200 bg-gradient-to-br from-amber-50 to-yellow-50 rounded-sm shadow-sm">
+                    <div className="flex items-start gap-4">
+                      <span className="text-2xl shrink-0">🏆</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[15px] sm:text-[17px] font-bold text-amber-900">Congratulations — All Tasks Complete!</p>
+                        <p className="text-[13px] text-amber-800 mt-1 leading-[1.5]">
+                          You've crushed all 3 tasks. Here's your exclusive GPT-5.5 API access:
+                        </p>
+                        <div className="mt-4 p-3 sm:p-4 bg-white border border-amber-300 rounded-sm space-y-3">
+                          <div>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-ink-faint">Base URL</span>
+                            <code className="block mt-0.5 text-[13px] font-mono bg-canvas-surface px-3 py-1.5 rounded-sm border border-border select-all break-all">
+                              https://api.freemodel.dev
+                            </code>
+                          </div>
+                          <div>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-ink-faint">API Key</span>
+                            <code className="block mt-0.5 text-[13px] font-mono bg-canvas-surface px-3 py-1.5 rounded-sm border border-border select-all break-all">
+                              fe_oa_6a74c41bbe9a269cc2ee8022653173684a10b1cd21e26064
+                            </code>
+                          </div>
+                        </div>
+                        <p className="text-[11px] text-amber-600 mt-2 font-medium">
+                          Save this somewhere safe — this key gives you access to GPT-5.5.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
           </>
         )}
 
