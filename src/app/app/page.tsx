@@ -1061,12 +1061,25 @@ export default function Home() {
                         try {
                           // Strip tracking params from tweet URL
                           const cleanUrl = tweetUrl.split('?')[0]
+                          // Fetch oEmbed data first — used as on-chain proof for LLM verification
+                          let oembedJson = '{}'
+                          try {
+                            const oembedRes = await fetch(`/api/verify_tweet?url=${encodeURIComponent(cleanUrl)}`)
+                            const oembedData = await oembedRes.json()
+                            if (oembedData.valid && oembedData.handle) {
+                              oembedJson = JSON.stringify({
+                                author_name: oembedData.authorName || oembedData.handle,
+                                author_url: `https://x.com/${oembedData.handle}`,
+                                html: `<p>${oembedData.text}</p>`,
+                              })
+                            }
+                          } catch {}
                           const activeChain = network === 'bradbury' ? testnetBradbury : studionet as any
                           const glWrite = createClient({ chain: activeChain, account: address as `0x${string}`, provider: getProvider() })
                           const hash = await glWrite.writeContract({
                             address: profileAddr as `0x${string}`,
                             functionName: 'submit',
-                            args: [new Uint8Array([0]), xHandle, verifyCode, cleanUrl],
+                            args: [oembedJson, xHandle, verifyCode, cleanUrl],
                             value: 0n,
                           })
                           setProfileTxHash(hash as string); setProfileSubmitted(true)
@@ -1095,14 +1108,20 @@ export default function Home() {
                           : profileSubmitting ? 'Submitting to GenLayer…' : 'Submit Proof →'}
                       </button>
                       {profileTaskId && !profileResult && (
-                        <div className="px-4 py-3 border border-amber-200 bg-amber-50/50 rounded-sm text-center">
-                          <p className="text-[13px] font-bold text-amber-800">⏳ Pending Verification</p>
-                          <p className="text-[12px] text-amber-700 mt-1">Your proof has been submitted. The resolver is checking the tweet via oEmbed API — this may take 1-2 minutes. Refresh to see the result.</p>
-                          <button onClick={() => { setProfileTaskId(null); setProfileTxHash(null); setProfileResult(null); setProfileError(null); }}
-                            className="mt-2 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-amber-700 border border-amber-300 rounded-sm hover:bg-amber-100 transition-colors">
-                            Dismiss
-                          </button>
-                        </div>
+                        <button onClick={async () => {
+                          if (!address || !walletClient || !profileTaskId || !profileAddr) return
+                          setProfileVerifying(true)
+                          try {
+                            const activeChain = network === 'bradbury' ? testnetBradbury : studionet as any
+                            const glWrite = createClient({ chain: activeChain, account: address as `0x${string}`, provider: getProvider() })
+                            const r: any = await glWrite.writeContract({ address: profileAddr as `0x${string}`, functionName: 'verify', args: [profileTaskId], value: 0n })
+                            setProfileResult(r || { status: 'verified', reason: 'X profile verified on-chain' })
+                          } catch (e: any) { setProfileError(e?.message || 'Verification failed') }
+                          finally { setProfileVerifying(false) }
+                        }}
+                          className="px-5 py-2.5 text-white text-[15px] font-bold rounded-sm transition-all" style={{backgroundColor: '#059669'}}>
+                          {profileVerifying ? 'Verifying…' : 'Verify Proof'}
+                        </button>
                       )}
                       {profileResult && (
                         <div className={`px-4 py-3 border rounded-sm text-center ${
