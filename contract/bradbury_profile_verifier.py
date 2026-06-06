@@ -1,21 +1,17 @@
 # { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }
 """
-Bradbury Profile Verifier — deterministic X handle verification via syndication API.
+Bradbury Profile Verifier — deterministic X handle verification via oEmbed API.
 
-STUDIONET profile_verifier.py:
-  web.render() + exec_prompt + prompt_comparative  ← kept as-is for StudioNet
+ARCHITECTURE (Best Bradbury-Compatible Stack):
 
-BRADBURY (this file):
-  gl.nondet.web.get() + deterministic JSON parse + strict_eq
-  No LLM, no render, no prompts.
+  Data source:  gl.nondet.web.get() against Twitter oEmbed API
+                 https://api.twitter.com/1.1/statuses/oembed.json?url=...
+  → Parses author_url for handle + html <p> for text
+  → Deterministic field comparison
+  → strict_eq consensus
 
-Flow:
-  1. User tweets "Verifying @taskverifier: {CODE}"
-  2. User submits tweet_url + handle + code
-  3. Contract fetches https://cdn.syndication.twimg.com/tweet-result?id=...
-  4. Parses user.screen_name + text from JSON response
-  5. Deterministic check: handle matches? code in text?
-  6. strict_eq → identical binary verdict from all validators
+  No relay. No render. No LLM. No syndication endpoint.
+  Just the official Twitter oEmbed API — stable, lightweight, consistent.
 """
 
 from genlayer import *
@@ -24,7 +20,9 @@ import json
 from dataclasses import dataclass
 import re
 
-SYNDICATION_BASE = "https://cdn.syndication.twimg.com/tweet-result"
+OEMBED_BASE = "https://publish.x.com/oembed"
+# oEmbed via Twitter syndication returns consistent JSON without redirects
+# publish.x.com is on the x.com domain which GenLayer VM can access
 
 
 @allow_storage
@@ -54,6 +52,19 @@ class BradburyProfileVerifier(gl.Contract):
         if not match:
             raise gl.vm.UserError("invalid tweet URL — must contain /status/<id>")
         return match.group(1)
+
+    def _extract_handle(self, author_url: str) -> str:
+        """Extract @handle from oEmbed author_url like https://x.com/GenLayer"""
+        parts = author_url.rstrip("/").split("/")
+        return parts[-1].lower() if parts else ""
+
+    def _extract_text(self, html: str) -> str:
+        """Extract tweet text from oEmbed HTML blockquote <p> tag"""
+        match = re.search(r'<p[^>]*>([\s\S]*?)</p>', html)
+        if not match:
+            return ""
+        # Strip any remaining HTML tags in the text
+        return re.sub(r'<[^>]+>', '', match.group(1)).strip()
 
     # ── Submit ───────────────────────────────────────────────────────────────
 
@@ -102,7 +113,7 @@ class BradburyProfileVerifier(gl.Contract):
 
         return task_id
 
-    # ── Verify (Syndication API → Deterministic → strict_eq) ────────────────
+    # ── Verify (oEmbed API → Deterministic → strict_eq) ────────────────────
 
     @gl.public.write
     def verify(self, task_id: str) -> typing.Any:
@@ -119,15 +130,21 @@ class BradburyProfileVerifier(gl.Contract):
                 f"wallet already verified as @{existing}"
             )
 
-        tweet_id = self._extract_tweet_id(sub.tweet_url)
-        api_url = f"{SYNDICATION_BASE}?id={tweet_id}&lang=en"
+        # Build oEmbed URL (captured outside nd() block per pitfall #32)
+        # Use + for URL param to avoid encoding issues in GenLayer VM
+        oembed_url = OEMBED_BASE + "?url=" + sub.tweet_url
 
         def nd() -> str:
-            """Non-deterministic block: fetch syndication JSON, return identical verdict."""
-            resp = gl.nondet.web.get(api_url)
+            """
+            Non-deterministic block:
+              1. GET oEmbed endpoint → normalized JSON
+              2. Parse author_url for handle, html <p> for text
+              3. Return deterministic binary verdict
+            """
+            resp = gl.nondet.web.get(oembed_url)
 
-            # Empty / too-small response → fail
-            if not resp or not resp.body or len(resp.body) < 50:
+            # Defensive: empty / tiny response = fail
+            if not resp or not resp.body or len(resp.body) < 20:
                 return '{"verified":false}'
 
             try:
@@ -135,21 +152,20 @@ class BradburyProfileVerifier(gl.Contract):
             except (json.JSONDecodeError, UnicodeDecodeError):
                 return '{"verified":false}'
 
-            # Defensive field extraction
-            user = data.get("user") or {}
-            api_handle = (user.get("screen_name") or "").lower()
-            tweet_text = data.get("text") or ""
+            # Extract fields from oEmbed response
+            api_handle = self._extract_handle(data.get("author_url") or "")
+            tweet_text = self._extract_text(data.get("html") or "")
 
-            # Deterministic check — no AI, no interpretation
+            # Binary check — no AI, no interpretation
             verified = (
                 api_handle == sub.x_handle.lower()
                 and sub.code in tweet_text
             )
 
-            # sort_keys=True → identical string across all validators
+            # sort_keys=True ensures identical output across all validators
             return json.dumps({"verified": verified}, sort_keys=True)
 
-        # strict_eq: all validators must return the EXACT same string
+        # strict_eq — ALL validators must return the EXACT same string
         raw = json.loads(gl.eq_principle.strict_eq(nd))
 
         verdict = "verified" if raw.get("verified", False) else "rejected"
