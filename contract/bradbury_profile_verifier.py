@@ -66,11 +66,24 @@ class BradburyProfileVerifier(gl.Contract):
         # Strip any remaining HTML tags in the text
         return re.sub(r'<[^>]+>', '', match.group(1)).strip()
 
+    def _url_encode(self, s: str) -> str:
+        """Minimal URL encoding for query param values."""
+        result = []
+        for c in s:
+            if c in ':/?#[]@!$&\'()*+,;=':
+                result.append(f'%{ord(c):02X}')
+            elif c == '%':
+                result.append('%25')
+            else:
+                result.append(c)
+        return ''.join(result)
+
     # ── Submit ───────────────────────────────────────────────────────────────
 
     @gl.public.write
     def submit(
         self,
+        img_data: bytes,
         x_handle: str,
         code: str,
         tweet_url: str,
@@ -131,8 +144,7 @@ class BradburyProfileVerifier(gl.Contract):
             )
 
         # Build oEmbed URL (captured outside nd() block per pitfall #32)
-        # Use + for URL param to avoid encoding issues in GenLayer VM
-        oembed_url = OEMBED_BASE + "?url=" + sub.tweet_url
+        oembed_url = OEMBED_BASE + "?url=" + self._url_encode(sub.tweet_url)
 
         def nd() -> str:
             """
@@ -141,10 +153,12 @@ class BradburyProfileVerifier(gl.Contract):
               2. Parse author_url for handle, html <p> for text
               3. Return deterministic binary verdict
             """
-            resp = gl.nondet.web.get(oembed_url)
-
-            # Defensive: empty / tiny response = fail
-            if not resp or not resp.body or len(resp.body) < 20:
+            try:
+                resp = gl.nondet.web.get(oembed_url)
+                if not resp or not resp.body or len(resp.body) < 20:
+                    return '{"verified":false}'
+            except:
+                # Network errors (DNS, timeout, connection refused) → fail gracefully
                 return '{"verified":false}'
 
             try:
