@@ -42,7 +42,7 @@ export default function LandingPage() {
             </Link>
             <Link href="/app"
               className="px-6 py-2.5 border border-border text-ink-muted text-[14px] font-semibold rounded-sm hover:border-brand-dark/30 hover:text-ink-deep transition-all">
-              View Activity
+              Join Campaign
             </Link>
           </div>
         </div>
