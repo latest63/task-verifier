@@ -1059,12 +1059,14 @@ export default function Home() {
                         if (!address || !walletClient || !profileAddr || !tweetUrl) return
                         setProfileSubmitting(true); setProfileTxHash(null); setProfileTaskId(null); setProfileResult(null)
                         try {
+                          // Strip tracking params from tweet URL
+                          const cleanUrl = tweetUrl.split('?')[0]
                           const activeChain = network === 'bradbury' ? testnetBradbury : studionet as any
                           const glWrite = createClient({ chain: activeChain, account: address as `0x${string}`, provider: getProvider() })
                           const hash = await glWrite.writeContract({
                             address: profileAddr as `0x${string}`,
                             functionName: 'submit',
-                            args: [new Uint8Array([0]), xHandle, verifyCode, tweetUrl],
+                            args: [new Uint8Array([0]), xHandle, verifyCode, cleanUrl],
                             value: 0n,
                           })
                           setProfileTxHash(hash as string); setProfileSubmitted(true)

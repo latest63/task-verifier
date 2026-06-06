@@ -66,6 +66,10 @@ class ProfileVerifier(gl.Contract):
         if not tweet_url.startswith("https://x.com/") and not tweet_url.startswith("https://twitter.com/"):
             raise gl.vm.UserError("Invalid tweet URL (must start with https://x.com/ or https://twitter.com/)")
 
+        # Strip tracking parameters from URLs (e.g. ?s=20) that can break web.render()
+        if "?" in tweet_url:
+            tweet_url = tweet_url.split("?")[0]
+
         task_id = f"p_{int(self.count)}"
         now = gl.message_raw["datetime"]
 
@@ -104,7 +108,6 @@ class ProfileVerifier(gl.Contract):
             page_content = gl.nondet.web.render(
                 sub.tweet_url,
                 mode="text",
-                wait_after_loaded="5s",
             )
 
             prompt = f"""You are a GenLayer X/Twitter profile verifier. Determine if the X/Twitter post at the URL below is from @{sub.x_handle} and contains the verification code "{sub.code}".
