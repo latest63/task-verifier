@@ -339,7 +339,7 @@ export default function Home() {
   // ── Submit ───────────────────────────────────────────────────────
 
   const submitProof = async () => {
-    if (!address || !walletClient || !compressedBytes || !contractAddr) return
+    if (!address || !compressedBytes || !contractAddr) return
     if (submittingRef.current) return
     submittingRef.current = true
     setSubmitting(true); setTxHash(null); setTaskId(null); setResult(null)
@@ -407,7 +407,7 @@ export default function Home() {
   // ── Verify ───────────────────────────────────────────────────────
 
   const verifyOne = async (id: string) => {
-    if (!address || !walletClient) return
+    if (!address) return
     if (verifyingRef.current) return
     verifyingRef.current = true
     setVerifying(id)
@@ -1056,7 +1056,7 @@ export default function Home() {
                     )}
                     <div className="flex gap-3">
                       <button onClick={async () => {
-                        if (!address || !walletClient || !profileAddr || !tweetUrl) return
+                        if (!address || !profileAddr || !tweetUrl) return
                         setProfileSubmitting(true); setProfileTxHash(null); setProfileTaskId(null); setProfileResult(null)
                         try {
                           // Strip tracking params from tweet URL
@@ -1107,7 +1107,7 @@ export default function Home() {
                       </button>
                       {profileTaskId && !profileResult && (
                         <button onClick={async () => {
-                          if (!address || !walletClient || !profileTaskId || !profileAddr) return
+                          if (!address || !profileTaskId || !profileAddr) return
                           setProfileVerifying(true)
                           try {
                             const activeChain = network === 'bradbury' ? testnetBradbury : studionet as any
