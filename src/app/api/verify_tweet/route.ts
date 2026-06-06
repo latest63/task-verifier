@@ -101,7 +101,8 @@ export async function GET(req: NextRequest) {
       error: '',
       url: tweetUrl,
       id: tweetId,
-    } satisfies TweetResult)
+      raw_oembed: body,  // pass through raw oEmbed JSON for on-chain submission
+    } satisfies TweetResult & { raw_oembed: string })
 
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
