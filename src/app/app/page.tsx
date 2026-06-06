@@ -232,7 +232,7 @@ export default function Home() {
       } else {
         setVerifiedHandle(null)
         // Redirect to profile verification if on a gated task
-        if (taskType === 'post_screenshot' || taskType === 'liked_post_screenshot') {
+        if (taskType === 'liked_post_screenshot') {
           setTaskType('profile_verification')
         }
       }
@@ -741,52 +741,29 @@ export default function Home() {
             </div>
 
             <div className="grid sm:grid-cols-2 gap-4 sm:gap-6">
-              {/* Task 1 — requires profile verification */}
-              {(!isConnected || verifiedHandle) ? (
-                <button onClick={() => { setView('submit'); setTaskType('post_screenshot') }}
-                  className="group text-left p-5 sm:p-6 border border-border rounded-sm bg-canvas hover:bg-canvas-surface hover:border-brand/40 transition-all text-start">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="shrink-0 w-10 h-10 flex items-center justify-center rounded-sm font-bold text-lg text-white"
-                      style={{ backgroundColor: '#1e3a5f' }}>
-                      1
-                    </div>
-                    <div>
-                      <h3 className="text-[16px] sm:text-[18px] font-bold text-ink-deep flex items-center gap-2">
-                        Post Screenshot
-                        <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-sm bg-amber-100 text-amber-700 border border-amber-300">Test</span>
-                      </h3>
-                      <p className="text-[12px] text-ink-faint mt-0.5">GenLayer post verification</p>
-                    </div>
+              {/* Task 1 — always accessible (test task) */}
+              <button onClick={() => { setView('submit'); setTaskType('post_screenshot') }}
+                className="group text-left p-5 sm:p-6 border border-border rounded-sm bg-canvas hover:bg-canvas-surface hover:border-brand/40 transition-all text-start">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="shrink-0 w-10 h-10 flex items-center justify-center rounded-sm font-bold text-lg text-white"
+                    style={{ backgroundColor: '#1e3a5f' }}>
+                    1
                   </div>
-                  <p className="text-[13px] sm:text-[14px] text-ink leading-[1.6]">
-                    Take a screenshot of any post from @GenLayer on X and verify it&rsquo;s the real deal.
-                  </p>
-                  <div className="mt-3 flex items-center gap-1.5 text-[12px] font-semibold text-brand group-hover:gap-2 transition-all">
-                    Start task →
+                  <div>
+                    <h3 className="text-[16px] sm:text-[18px] font-bold text-ink-deep flex items-center gap-2">
+                      Post Screenshot
+                      <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-sm bg-amber-100 text-amber-700 border border-amber-300">Test</span>
+                    </h3>
+                    <p className="text-[12px] text-ink-faint mt-0.5">GenLayer post verification</p>
                   </div>
-                </button>
-              ) : (
-                <button onClick={() => { setView('submit'); setTaskType('profile_verification') }}
-                  className="group text-left p-5 sm:p-6 border border-dashed border-ink-faint/30 rounded-sm bg-canvas-surface/50 cursor-pointer text-start">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="shrink-0 w-10 h-10 flex items-center justify-center rounded-sm font-bold text-lg text-ink-faint/40 border-2 border-dashed border-ink-faint/20">
-                      <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none"><rect x="3.5" y="6.5" width="9" height="7" rx="1" stroke="currentColor" strokeWidth="1.3"/><path d="M5.5 6.5V4.5a2.5 2.5 0 015 0v2" stroke="currentColor" strokeWidth="1.3"/></svg>
-                    </div>
-                    <div>
-                      <h3 className="text-[16px] sm:text-[18px] font-bold text-ink-faint/40 flex items-center gap-2">
-                        Post Screenshot
-                      </h3>
-                      <p className="text-[12px] text-ink-faint/40 mt-0.5">Verify X Profile first</p>
-                    </div>
-                  </div>
-                  <p className="text-[13px] sm:text-[14px] text-ink-faint/50 leading-[1.6]">
-                    Verify your X/Twitter handle first — then you can submit post screenshots for verification.
-                  </p>
-                  <div className="mt-3 flex items-center gap-1.5 text-[12px] font-semibold text-ink-faint/50">
-                    Verify X Profile first →
-                  </div>
-                </button>
-              )}
+                </div>
+                <p className="text-[13px] sm:text-[14px] text-ink leading-[1.6]">
+                  Take a screenshot of any post from @GenLayer on X and verify it&rsquo;s the real deal.
+                </p>
+                <div className="mt-3 flex items-center gap-1.5 text-[12px] font-semibold text-brand group-hover:gap-2 transition-all">
+                  Start task →
+                </div>
+              </button>
 
               {/* Task 2 */}
               <button onClick={() => { setView('submit'); setTaskType('profile_verification') }}
@@ -911,9 +888,7 @@ export default function Home() {
                     </button>
                     {actTaskOpen && (
                       <div className="absolute left-0 top-full mt-1 z-50 min-w-[110px] border border-border rounded-sm bg-canvas-surface shadow-lg overflow-hidden">
-                        {(!isConnected || verifiedHandle) ? (
-                          <button onMouseDown={(e) => { e.preventDefault(); setActTaskOpen(false); setTaskType('post_screenshot') }} className="w-full text-left px-3 py-1.5 text-[11px] font-bold hover:bg-canvas-raised transition-colors flex items-center gap-1.5 uppercase tracking-wider">📸 Post</button>
-                        ) : null}
+                        <button onMouseDown={(e) => { e.preventDefault(); setActTaskOpen(false); setTaskType('post_screenshot') }} className="w-full text-left px-3 py-1.5 text-[11px] font-bold hover:bg-canvas-raised transition-colors flex items-center gap-1.5 uppercase tracking-wider">📸 Post</button>
                         <button onMouseDown={(e) => { e.preventDefault(); setActTaskOpen(false); setTaskType('profile_verification') }} className="w-full text-left px-3 py-1.5 text-[11px] font-bold hover:bg-canvas-raised transition-colors flex items-center gap-1.5 uppercase tracking-wider">👤 Profile</button>
                         {(!isConnected || verifiedHandle) ? (
                           <button onMouseDown={(e) => { e.preventDefault(); setActTaskOpen(false); setTaskType('liked_post_screenshot') }} className="w-full text-left px-3 py-1.5 text-[11px] font-bold hover:bg-canvas-raised transition-colors flex items-center gap-1.5 uppercase tracking-wider">❤️ Liked</button>
@@ -1028,9 +1003,7 @@ export default function Home() {
                   </button>
                   {subTaskOpen && (
                     <div className="absolute left-0 top-full mt-1 z-50 min-w-[180px] border border-border rounded-sm bg-canvas-surface shadow-lg overflow-hidden">
-                      {(!isConnected || verifiedHandle) ? (
-                        <button onMouseDown={(e) => { e.preventDefault(); setSubTaskOpen(false); setTaskType('post_screenshot'); setFile(null); setRawPreview(null); setCompressedPreview(null); setCompressedBlob(null); setCompressedBytes(null); setCompressionInfo(null); setCompressWarn(null); setTaskId(null); setTxHash(null); setResult(null) }} className="w-full text-left px-3 py-1.5 text-[12px] font-bold hover:bg-canvas-raised transition-colors flex items-center gap-1.5">📸 Post Screenshot</button>
-                      ) : null}
+                      <button onMouseDown={(e) => { e.preventDefault(); setSubTaskOpen(false); setTaskType('post_screenshot'); setFile(null); setRawPreview(null); setCompressedPreview(null); setCompressedBlob(null); setCompressedBytes(null); setCompressionInfo(null); setCompressWarn(null); setTaskId(null); setTxHash(null); setResult(null) }} className="w-full text-left px-3 py-1.5 text-[12px] font-bold hover:bg-canvas-raised transition-colors flex items-center gap-1.5">📸 Post Screenshot</button>
                       <button onMouseDown={(e) => { e.preventDefault(); setSubTaskOpen(false); setTaskType('profile_verification'); setFile(null); setRawPreview(null); setCompressedPreview(null); setCompressedBlob(null); setCompressedBytes(null); setCompressionInfo(null); setCompressWarn(null); setTaskId(null); setTxHash(null); setResult(null); setXHandle(''); setVerifyCode(''); setCodeExpiresAt(null); setCountdown(0); setTweetUrl(''); setProfileFile(null); setProfileRawPreview(null); setProfileCompressedPreview(null); setProfileCompressedBlob(null); setProfileCompressedBytes(null); setProfileCompressionInfo(null); setProfileCompressWarn(null); setProfileTaskId(null); setProfileTxHash(null); setProfileResult(null) }} className="w-full text-left px-3 py-1.5 text-[12px] font-bold hover:bg-canvas-raised transition-colors flex items-center gap-1.5">👤 Verify X Profile</button>
                       {(!isConnected || verifiedHandle) ? (
                         <button onMouseDown={(e) => { e.preventDefault(); setSubTaskOpen(false); setTaskType('liked_post_screenshot'); setFile(null); setRawPreview(null); setCompressedPreview(null); setCompressedBlob(null); setCompressedBytes(null); setCompressionInfo(null); setCompressWarn(null); setTaskId(null); setTxHash(null); setResult(null) }} className="w-full text-left px-3 py-1.5 text-[12px] font-bold hover:bg-canvas-raised transition-colors flex items-center gap-1.5">❤️ Liked Post Screenshot</button>
@@ -1063,10 +1036,21 @@ export default function Home() {
                   </button>
                 ) : verifiedHandle ? (
                   <div className="mb-6 p-5 border border-emerald-200 bg-emerald-50/60 rounded-sm flex items-center gap-4">
-                    <div className="shrink-0 w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center">
-                      <svg className="w-5 h-5 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" /><circle cx="12" cy="7" r="4" />
-                      </svg>
+                    <div className="shrink-0 w-10 h-10 rounded-full overflow-hidden bg-emerald-100 flex items-center justify-center">
+                      <img src={`https://unavatar.io/x/${verifiedHandle}`}
+                           alt={`@${verifiedHandle}`}
+                           className="w-full h-full object-cover"
+                           onError={(e) => {
+                             const target = e.currentTarget
+                             target.style.display = 'none'
+                             const fallback = target.nextElementSibling as HTMLElement | null
+                             if (fallback) fallback.style.display = 'flex'
+                           }} />
+                      <div className="hidden w-full h-full items-center justify-center bg-emerald-100">
+                        <svg className="w-5 h-5 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" /><circle cx="12" cy="7" r="4" />
+                        </svg>
+                      </div>
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
