@@ -1,1 +1,9 @@
-{ "framework": "nextjs" }
+{
+  "functions": {
+    "api/*.py": {
+      "runtime": "python3.12@0.1.0",
+      "maxDuration": 30
+    }
+  },
+  "buildCommand": ""
+}
