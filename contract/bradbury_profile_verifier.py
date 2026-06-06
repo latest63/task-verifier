@@ -1,28 +1,24 @@
 # { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }
 """
-Bradbury Profile Verifier — deterministic X handle verification via oEmbed API.
+Bradbury Profile Verifier — Relay-based X handle verification.
 
-ARCHITECTURE (Best Bradbury-Compatible Stack):
+ARCHITECTURE:
 
-  Data source:  gl.nondet.web.get() against Twitter oEmbed API
-                 https://api.twitter.com/1.1/statuses/oembed.json?url=...
-  → Parses author_url for handle + html <p> for text
-  → Deterministic field comparison
-  → strict_eq consensus
+  Verification is done OFF-CHAIN by the deployer's resolver script:
+    1. User submits (img_data, x_handle, code, tweet_url) → pending state
+    2. Resolver script polls pending submissions
+    3. Resolver fetches oEmbed via the Next.js relay endpoint
+    4. Resolver calls resolve(task_id, verified) on the contract
+    5. Contract updates state deterministically — no web.get, no strict_eq
 
-  No relay. No render. No LLM. No syndication endpoint.
-  Just the official Twitter oEmbed API — stable, lightweight, consistent.
+  This avoids the Bradbury strict_eq + gl.nondet.web.get bug where all
+  validators vote DISAGREE even with identical ND results.
 """
 
 from genlayer import *
 import typing
-import json
 from dataclasses import dataclass
 import re
-
-OEMBED_BASE = "https://publish.x.com/oembed"
-# oEmbed via Twitter syndication returns consistent JSON without redirects
-# publish.x.com is on the x.com domain which GenLayer VM can access
 
 
 @allow_storage
@@ -41,9 +37,11 @@ class BradburyProfileVerifier(gl.Contract):
     submissions: TreeMap[str, Submission]
     verified_handles: TreeMap[str, str]   # wallet_hex → x_handle
     count: u256
+    owner: Address
 
     def __init__(self):
         self.count = u256(0)
+        self.owner = gl.message.sender_address
 
     # ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -52,31 +50,6 @@ class BradburyProfileVerifier(gl.Contract):
         if not match:
             raise gl.vm.UserError("invalid tweet URL — must contain /status/<id>")
         return match.group(1)
-
-    def _extract_handle(self, author_url: str) -> str:
-        """Extract @handle from oEmbed author_url like https://x.com/GenLayer"""
-        parts = author_url.rstrip("/").split("/")
-        return parts[-1].lower() if parts else ""
-
-    def _extract_text(self, html: str) -> str:
-        """Extract tweet text from oEmbed HTML blockquote <p> tag"""
-        match = re.search(r'<p[^>]*>([\s\S]*?)</p>', html)
-        if not match:
-            return ""
-        # Strip any remaining HTML tags in the text
-        return re.sub(r'<[^>]+>', '', match.group(1)).strip()
-
-    def _url_encode(self, s: str) -> str:
-        """Minimal URL encoding for query param values."""
-        result = []
-        for c in s:
-            if c in ':/?#[]@!$&\'()*+,;=':
-                result.append(f'%{ord(c):02X}')
-            elif c == '%':
-                result.append('%25')
-            else:
-                result.append(c)
-        return ''.join(result)
 
     # ── Submit ───────────────────────────────────────────────────────────────
 
@@ -126,68 +99,34 @@ class BradburyProfileVerifier(gl.Contract):
 
         return task_id
 
-    # ── Verify (oEmbed API → Deterministic → strict_eq) ────────────────────
+    # ── Resolve (called by deployer's off-chain resolver) ───────────────────
 
     @gl.public.write
-    def verify(self, task_id: str) -> typing.Any:
+    def resolve(self, task_id: str, verified: bool) -> dict:
+        """Resolve a pending submission. Only callable by the contract owner."""
+        if gl.message.sender_address != self.owner:
+            raise gl.vm.UserError("only the contract owner can resolve submissions")
+
         sub = self.submissions.get(task_id)
         if sub is None:
             raise gl.vm.UserError("submission not found")
         if sub.status != "pending":
-            raise gl.vm.UserError("already verified")
+            raise gl.vm.UserError("submission already resolved")
 
-        # Double-check wallet not already verified
+        # Double-check wallet not already verified (edge case: wallet verified
+        # between submit and resolve via another submission)
         existing = self.verified_handles.get(sub.submitter.as_hex.lower(), "")
         if existing != "":
-            raise gl.vm.UserError(
-                f"wallet already verified as @{existing}"
+            # Wallet got verified through another submission — mark this one rejected
+            verdict = "rejected"
+            reason = f"wallet already verified as @{existing}"
+        else:
+            verdict = "verified" if verified else "rejected"
+            reason = (
+                f"X handle @{sub.x_handle} verified — off-chain oEmbed check passed"
+                if verdict == "verified"
+                else f"could not confirm @{sub.x_handle} — off-chain oEmbed check failed"
             )
-
-        # Build oEmbed URL (captured outside nd() block per pitfall #32)
-        oembed_url = OEMBED_BASE + "?url=" + self._url_encode(sub.tweet_url)
-
-        def nd() -> str:
-            """
-            Non-deterministic block:
-              1. GET oEmbed endpoint → normalized JSON
-              2. Parse author_url for handle, html <p> for text
-              3. Return deterministic binary verdict
-            """
-            try:
-                resp = gl.nondet.web.get(oembed_url)
-                if not resp or not resp.body or len(resp.body) < 20:
-                    return '{"verified":false}'
-            except:
-                # Network errors (DNS, timeout, connection refused) → fail gracefully
-                return '{"verified":false}'
-
-            try:
-                data = json.loads(resp.body.decode())
-            except (json.JSONDecodeError, UnicodeDecodeError):
-                return '{"verified":false}'
-
-            # Extract fields from oEmbed response
-            api_handle = self._extract_handle(data.get("author_url") or "")
-            tweet_text = self._extract_text(data.get("html") or "")
-
-            # Binary check — no AI, no interpretation
-            verified = (
-                api_handle == sub.x_handle.lower()
-                and sub.code in tweet_text
-            )
-
-            # sort_keys=True ensures identical output across all validators
-            return json.dumps({"verified": verified}, sort_keys=True)
-
-        # strict_eq — ALL validators must return the EXACT same string
-        raw = json.loads(gl.eq_principle.strict_eq(nd))
-
-        verdict = "verified" if raw.get("verified", False) else "rejected"
-        reason = (
-            f"X handle @{sub.x_handle} verified — tweet contains matching handle + code"
-            if verdict == "verified"
-            else f"could not confirm @{sub.x_handle} — handle or code not found in tweet"
-        )
 
         sub.status = verdict
         sub.verdict = reason
