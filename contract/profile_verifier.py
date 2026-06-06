@@ -104,11 +104,16 @@ class ProfileVerifier(gl.Contract):
             )
 
         def nd() -> str:
-            # Fetch the tweet page to verify the code and handle are present
-            page_content = gl.nondet.web.render(
-                sub.tweet_url,
-                mode="text",
-            )
+            # Fetch the tweet page HTML directly (no headless browser — Bradbury validators crash on web.render)
+            resp = gl.nondet.web.get(sub.tweet_url)
+            page_text = resp.body.decode(errors="replace")
+            # Twitter HTML is large (~280KB); tweet text is embedded in JSON around ~35-50KB mark
+            # Slice from a likely offset to capture the full_text JSON field
+            start = max(0, page_text.find("full_text") - 200)
+            if start > 0:
+                snippet = page_text[start:start + 20000]
+            else:
+                snippet = page_text[:70000]
 
             prompt = f"""You are a GenLayer X/Twitter profile verifier. Determine if the X/Twitter post at the URL below is from @{sub.x_handle} and contains the verification code "{sub.code}".
 
@@ -116,13 +121,13 @@ X HANDLE TO VERIFY: @{sub.x_handle}
 VERIFICATION CODE: {sub.code}
 TWEET URL: {sub.tweet_url}
 
-PAGE CONTENT FROM THE URL:
-{page_content[:5000]}
+PAGE HTML CONTENT FROM THE URL:
+{snippet[:15000]}
 
 INSTRUCTIONS:
-1. Does the page content show a tweet/post from @{sub.x_handle}? Look for the handle, display name, or @username in the content.
-2. Does the tweet text contain the exact verification code "{sub.code}" as a continuous, unbroken string?
-3. If the page is an error, login wall, or doesn't contain a tweet -> verified=false
+1. Does the page HTML contain a tweet/post from @{sub.x_handle}? Look for the handle, @username, or "screen_name":"handle" in the content.
+2. Does the tweet text contain the exact verification code "{sub.code}" as a continuous, unbroken string? Look for "full_text":"...{sub.code}..." in the JSON data.
+3. If the page is an error, not found, or doesn't contain a tweet -> verified=false
 4. If the tweet author is NOT @{sub.x_handle} -> verified=false
 5. If the verification code "{sub.code}" is NOT present in the tweet text -> verified=false
 6. If unsure about any requirement -> verified=false
