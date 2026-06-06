@@ -1061,17 +1061,15 @@ export default function Home() {
                         try {
                           // Strip tracking params from tweet URL
                           const cleanUrl = tweetUrl.split('?')[0]
-                          // Fetch oEmbed data first — used as on-chain proof for LLM verification
-                          let oembedJson = '{}'
+                          // Fetch oEmbed data first
+                          let oembedAuthorUrl = ''
+                          let oembedTweetText = ''
                           try {
                             const oembedRes = await fetch(`/api/verify_tweet?url=${encodeURIComponent(cleanUrl)}`)
                             const oembedData = await oembedRes.json()
                             if (oembedData.valid && oembedData.handle) {
-                              oembedJson = JSON.stringify({
-                                author_name: oembedData.authorName || oembedData.handle,
-                                author_url: `https://x.com/${oembedData.handle}`,
-                                html: `<p>${oembedData.text}</p>`,
-                              })
+                              oembedAuthorUrl = `https://x.com/${oembedData.handle}`
+                              oembedTweetText = oembedData.text || ''
                             }
                           } catch {}
                           const activeChain = network === 'bradbury' ? testnetBradbury : studionet as any
@@ -1079,7 +1077,7 @@ export default function Home() {
                           const hash = await glWrite.writeContract({
                             address: profileAddr as `0x${string}`,
                             functionName: 'submit',
-                            args: [oembedJson, xHandle, verifyCode, cleanUrl],
+                            args: [xHandle, verifyCode, cleanUrl, oembedAuthorUrl, oembedTweetText],
                             value: 0n,
                           })
                           setProfileTxHash(hash as string); setProfileSubmitted(true)
