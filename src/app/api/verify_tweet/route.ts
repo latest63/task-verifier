@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const SYNDICATION_URL = 'https://cdn.syndication.twimg.com/tweet-result'
-const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 const TIMEOUT_MS = 12_000
 
 interface TweetResult {
@@ -16,6 +14,26 @@ interface TweetResult {
 function extractTweetId(url: string): string | null {
   const match = url.match(/\/status\/(\d+)/)
   return match?.[1] ?? null
+}
+
+/** Extract @handle from oEmbed author_url like https://x.com/GenLayer */
+function extractHandle(authorUrl: string): string {
+  try {
+    const path = new URL(authorUrl).pathname.replace(/\/+$/, '')
+    return path.split('/').filter(Boolean).pop()?.toLowerCase() ?? ''
+  } catch {
+    return ''
+  }
+}
+
+/** Extract tweet text from oEmbed HTML blockquote */
+function extractText(html: string): string {
+  // The HTML is a blockquote with a <p> containing the tweet text
+  // <blockquote ...><p lang="en" dir="ltr">TEXT HERE</p>...</blockquote>
+  const pMatch = html.match(/<p[^>]*>([\s\S]*?)<\/p>/)
+  if (!pMatch) return ''
+  // Strip any remaining HTML tags in the text
+  return pMatch[1].replace(/<[^>]+>/g, '').trim()
 }
 
 export async function GET(req: NextRequest) {
@@ -36,55 +54,48 @@ export async function GET(req: NextRequest) {
     )
   }
 
-  const apiUrl = `${SYNDICATION_URL}?id=${tweetId}&lang=en`
-
   try {
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS)
 
-    const res = await fetch(apiUrl, {
-      headers: {
-        'User-Agent': USER_AGENT,
-        'Accept': 'application/json',
-      },
-      signal: controller.signal,
-    })
+    const res = await fetch(
+      `https://publish.twitter.com/oembed?url=${encodeURIComponent(tweetUrl)}`,
+      {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; TaskVerifierRelay/1.0)',
+          'Accept': 'application/json',
+        },
+        signal: controller.signal,
+      }
+    )
     clearTimeout(timeout)
 
     if (!res.ok) {
       return NextResponse.json({
         handle: '', text: '', valid: false,
-        error: `syndication HTTP ${res.status}`,
+        error: `oEmbed HTTP ${res.status}`,
         url: tweetUrl, id: tweetId,
       } satisfies TweetResult)
     }
 
     const body = await res.text()
 
-    if (!body || body.length < 10) {
+    if (!body || body.length < 20) {
       return NextResponse.json({
         handle: '', text: '', valid: false,
-        error: 'empty response from syndication',
+        error: 'empty response from oEmbed',
         url: tweetUrl, id: tweetId,
       } satisfies TweetResult)
     }
 
     const data = JSON.parse(body)
 
-    if (!data || data.__typename !== 'Tweet') {
-      return NextResponse.json({
-        handle: '', text: '', valid: false,
-        error: 'tweet not found in syndication',
-        url: tweetUrl, id: tweetId,
-      } satisfies TweetResult)
-    }
-
-    const user = data.user ?? {}
-    const handle = (user.screen_name ?? '').toLowerCase()
-    const text = data.text ?? ''
+    const handle = extractHandle(data.author_url ?? '')
+    const text = extractText(data.html ?? '')
+    const authorName = data.author_name ?? ''
 
     return NextResponse.json({
-      handle,
+      handle: handle || (authorName ? authorName.toLowerCase() : ''),
       text,
       valid: !!(handle && text),
       error: '',
@@ -102,4 +113,4 @@ export async function GET(req: NextRequest) {
   }
 }
 
-export const runtime = 'nodejs' // force Node.js runtime for fetch
+export const runtime = 'nodejs'
