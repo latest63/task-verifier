@@ -101,6 +101,7 @@ export default function Home() {
   // Dashboard
   const [subs, setSubs] = useState<Record<string, SubData>>({})
   const [loading, setLoading] = useState(false)
+  const [xHandles, setXHandles] = useState<Record<string, string>>({})
 
   // Submit
   const [file, setFile] = useState<File | null>(null)
@@ -311,6 +312,28 @@ export default function Home() {
   }, [contractAddr, glClient, likedContractBradbury, likedContractStudio, network])
 
   useEffect(() => { fetchSubs(); const i = setInterval(fetchSubs, 10000); return () => clearInterval(i) }, [fetchSubs])
+
+  // ── Fetch X handles for all submitters ──
+  useEffect(() => {
+    if (!profileAddr || !glClient || Object.keys(subs).length === 0) return
+    const addrs = [...new Set(Object.values(subs).map(s => s.submitter?.toLowerCase()).filter(Boolean))]
+    const uncached = addrs.filter(a => a && !xHandles[a])
+    if (uncached.length === 0) return
+    let cancelled = false
+    Promise.all(uncached.map(async (addr) => {
+      try {
+        const handle: any = await glClient.readContract({
+          address: profileAddr as `0x${string}`,
+          functionName: 'get_x_handle',
+          args: [addr],
+        })
+        if (!cancelled && handle && typeof handle === 'string' && handle.length > 0) {
+          setXHandles(prev => ({ ...prev, [addr!]: handle }))
+        }
+      } catch {}
+    }))
+    return () => { cancelled = true }
+  }, [subs, profileAddr, glClient])
 
   // ── Image compression ────────────────────────────────────────────
 
@@ -1059,6 +1082,9 @@ export default function Home() {
                             </div>
                             <p className="text-[11px] sm:text-[12px] text-ink-faint mt-0.5 font-mono">
                               submitted by {fmtAddr(s.submitter)} · {new Date(s.timestamp).toLocaleString()}
+                              {xHandles[s.submitter?.toLowerCase()] && (
+                                <span className="ml-2 text-emerald-600 font-semibold">@{xHandles[s.submitter?.toLowerCase()]}</span>
+                              )}
                             </p>
                             {s.verdict && (
                               <p className={`text-[12px] sm:text-[13px] italic mt-2 leading-[1.5] ${isVer ? 'text-emerald-700' : 'text-ink-muted'}`}>
