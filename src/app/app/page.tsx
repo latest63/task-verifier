@@ -813,7 +813,7 @@ export default function Home() {
               </div>
 
               {/* Step 3 — requires profile verification */}
-              {(!isConnected || verifiedHandle) ? (
+              {(!isConnected || verifiedHandle || isDeployer) ? (
                 <div
                   className="group p-5 sm:p-6 border border-border rounded-sm bg-canvas hover:bg-canvas-surface hover:border-brand/40 transition-all cursor-pointer"
                   onClick={() => { setView('submit'); setTaskType('liked_post_screenshot') }}>
@@ -1003,7 +1003,7 @@ export default function Home() {
                       <div className="absolute left-0 top-full mt-1 z-50 min-w-[110px] border border-border rounded-sm bg-canvas-surface shadow-lg overflow-hidden">
                         <button onMouseDown={(e) => { e.preventDefault(); setActTaskOpen(false); setTaskType('post_screenshot') }} className="w-full text-left px-3 py-1.5 text-[11px] font-bold hover:bg-canvas-raised transition-colors flex items-center gap-1.5 uppercase tracking-wider">📸 Post</button>
                         <button onMouseDown={(e) => { e.preventDefault(); setActTaskOpen(false); setTaskType('profile_verification') }} className="w-full text-left px-3 py-1.5 text-[11px] font-bold hover:bg-canvas-raised transition-colors flex items-center gap-1.5 uppercase tracking-wider">👤 Profile</button>
-                        {(!isConnected || verifiedHandle) ? (
+                        {(!isConnected || verifiedHandle || isDeployer) ? (
                           <button onMouseDown={(e) => { e.preventDefault(); setActTaskOpen(false); setTaskType('liked_post_screenshot') }} className="w-full text-left px-3 py-1.5 text-[11px] font-bold hover:bg-canvas-raised transition-colors flex items-center gap-1.5 uppercase tracking-wider">❤️ Liked</button>
                         ) : null}
                       </div>
@@ -1118,7 +1118,7 @@ export default function Home() {
                     <div className="absolute left-0 top-full mt-1 z-50 min-w-[180px] border border-border rounded-sm bg-canvas-surface shadow-lg overflow-hidden">
                       <button onMouseDown={(e) => { e.preventDefault(); setSubTaskOpen(false); setTaskType('post_screenshot'); setFile(null); setRawPreview(null); setCompressedPreview(null); setCompressedBlob(null); setCompressedBytes(null); setCompressionInfo(null); setCompressWarn(null); setTaskId(null); setTxHash(null); setResult(null) }} className="w-full text-left px-3 py-1.5 text-[12px] font-bold hover:bg-canvas-raised transition-colors flex items-center gap-1.5">📸 Post Screenshot</button>
                       <button onMouseDown={(e) => { e.preventDefault(); setSubTaskOpen(false); setTaskType('profile_verification'); setFile(null); setRawPreview(null); setCompressedPreview(null); setCompressedBlob(null); setCompressedBytes(null); setCompressionInfo(null); setCompressWarn(null); setTaskId(null); setTxHash(null); setResult(null); setXHandle(''); setVerifyCode(''); setCodeExpiresAt(null); setCountdown(0); setTweetUrl(''); setProfileFile(null); setProfileRawPreview(null); setProfileCompressedPreview(null); setProfileCompressedBlob(null); setProfileCompressedBytes(null); setProfileCompressionInfo(null); setProfileCompressWarn(null); setProfileTaskId(null); setProfileTxHash(null); setProfileResult(null) }} className="w-full text-left px-3 py-1.5 text-[12px] font-bold hover:bg-canvas-raised transition-colors flex items-center gap-1.5">👤 Verify X Profile</button>
-                      {(!isConnected || verifiedHandle) ? (
+                      {(!isConnected || verifiedHandle || isDeployer) ? (
                         <button onMouseDown={(e) => { e.preventDefault(); setSubTaskOpen(false); setTaskType('liked_post_screenshot'); setFile(null); setRawPreview(null); setCompressedPreview(null); setCompressedBlob(null); setCompressedBytes(null); setCompressionInfo(null); setCompressWarn(null); setTaskId(null); setTxHash(null); setResult(null) }} className="w-full text-left px-3 py-1.5 text-[12px] font-bold hover:bg-canvas-raised transition-colors flex items-center gap-1.5">❤️ Liked Post Screenshot</button>
                       ) : null}
                     </div>
